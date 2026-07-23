@@ -1,0 +1,29 @@
+{
+  "name": "salon-project",
+  "private": true,
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=24.16.0",
+    "pnpm": ">=11.5.0"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "format": "biome check --write .",
+    "clean": "turbo run clean",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint . --write",
+    "check": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
+    "@types/node": "^26.0.1",
+    "turbo": "^2.10.2",
+    "typescript": "^6.0.3"
+  }
+}

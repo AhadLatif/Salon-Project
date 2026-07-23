@@ -1,0 +1,11 @@
+{
+  "name": "@salon/typescript-config",
+  "private": true,
+  "version": "1.0.0",
+  "exports": {
+    "./base.json": "./base.json",
+    "./library.json": "./library.json",
+    "./app.json": "./app.json",
+    "./test.json": "./test.json"
+  }
+}
