@@ -1,3 +1,1 @@
-
-const logger : string = "hello I am logger from logger package"
-export  {logger }
+export { logger, createLogger } from "./logger.js";

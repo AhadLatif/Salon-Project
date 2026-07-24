@@ -1,4 +1,6 @@
 packages:
   - "apps/*" #  (*) matches only one level of subdirectory
   - "packages/**" # (**) matches any level of subdirectory
-
+  - "configs/*"
+allowBuilds:
+  esbuild: true

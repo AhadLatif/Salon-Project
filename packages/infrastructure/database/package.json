@@ -3,25 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-
   "devDependencies": {
     "@salon/typescript-config": "workspace:*",
+    "@types/pg": "^8.20.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@salon/config": "workspace:*",
+    "@salon/logger": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.22.0"
   }
 }
