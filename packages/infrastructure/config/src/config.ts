@@ -1,23 +1,18 @@
-/*
-
-config.ts
-
-This is the heart of the package.
-
-Responsibilities:
-
-Read raw environment variables.
-Validate them.
-Transform them into useful types.
-Freeze the resulting object.
-Export it.
-
-Example:
-
-config.server.port
-
-returns a number, not a string.
-*/
+/**
+ * @fileoverview Configuration module
+ *
+ * This is the heart of the package.
+ *
+ * @responsibilities
+ * - Read raw environment variables
+ * - Validate them
+ * - Transform them into useful types
+ * - Freeze the resulting object
+ * - Export it
+ *
+ * @example
+ * config.server.port returns a number, not a string.
+ */
 
 
 import { prettifyError } from "zod";
@@ -45,21 +40,21 @@ throw new Error("Application startup aborted.");
 export const config  = Object.freeze({
 
 // ** Instead of exposing flat properties, expose logical groups.
-    server: {
+    server: Object.freeze({
         host : parsed.data.HOST,
         port : parsed.data.PORT,
-    },
+    }),
 
-     app: {
+     app: Object.freeze({
         name : parsed.data.APP_NAME,
         environment: parsed.data.NODE_ENV,
-     },
+     }),
 
-     logging: {
+     logging: Object.freeze({
         level: parsed.data.LOG_LEVEL,
-     },
-     database : {
+     }),
+     database : Object.freeze({
       url : parsed.data.DATABASE_URL,
-     }
+     })
 
 })

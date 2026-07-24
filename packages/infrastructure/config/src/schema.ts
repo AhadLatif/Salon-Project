@@ -1,25 +1,18 @@
-/*
-Responsibility
-
-Describe what valid configuration looks like.
-
-Example:
-
-Server
-HOST
-PORT
-
-Database
-DATABASE_URL
-
-Logging
-LOG_LEVEL
-
-This file knows nothing about Express, PostgreSQL, or the rest of the application.
-
-It only knows what is valid.
-*/
-
+/**
+ * @fileoverview Configuration module
+ *
+ * This is the heart of the package.
+ *
+ * @responsibilities
+ * - Read raw environment variables
+ * - Validate them
+ * - Transform them into useful types
+ * - Freeze the resulting object
+ * - Export it
+ *
+ * @example
+ * config.server.port returns a number, not a string.
+ */
 
 import { z } from "zod";
 
@@ -44,7 +37,9 @@ export const environmentSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
 
-    DATABASE_URL:z.url(),
+    DATABASE_URL: z.url({
+      protocol: /^postgres(?:ql)?$/,
+    }),
 
 });
 

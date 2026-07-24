@@ -6,5 +6,5 @@
     "outDir": "./dist"
   },
 
-  "include": ["src", "src/drrizzle.config.ts"]
+  "include": ["src"]
 }
