@@ -14,16 +14,15 @@
  * config.server.port returns a number, not a string.
  */
 
-
+// import "dotenv"
 import { prettifyError } from "zod";
 
 
-import {env } from "./env.js";
 import {environmentSchema} from "./schema.js";
 
 
 // first parse compelete env file via zod 
-const parsed =  environmentSchema.safeParse(env);
+const parsed =  environmentSchema.safeParse(process.env);
 
 if(!parsed.success){
    console.error("❌ Invalid environment configuration.");
