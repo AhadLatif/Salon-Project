@@ -99,6 +99,9 @@ importers:
       pg:
         specifier: ^8.22.0
         version: 8.22.0
+      uuid:
+        specifier: ^14.0.1
+        version: 14.0.1
     devDependencies:
       '@salon/typescript-config':
         specifier: workspace:*
@@ -1548,6 +1551,10 @@ packages:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
 
+  uuid@14.0.1:
+    resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
+    hasBin: true
+
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
@@ -2603,6 +2610,8 @@ snapshots:
   undici-types@8.3.0: {}
 
   unpipe@1.0.0: {}
+
+  uuid@14.0.1: {}
 
   vary@1.1.2: {}
 
