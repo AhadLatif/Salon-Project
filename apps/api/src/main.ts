@@ -3,8 +3,10 @@ import "./boostrap/env.js";
 import { logger } from "@salon/logger";
 import type { Express } from "express";
 import { createApp } from "./app.js";
-import { startServer } from "./server.js";
 import { registerShutdownHandlers } from "./boostrap/shutdown.js";
+import { startServer } from "./server.js";
+
+
 
 /**
  * app.ts is testable without opening a socket.
@@ -36,12 +38,12 @@ try {
     logger.fatal(error, "Application failed to start");
     process.exit(1);
   });
-
+  
   registerShutdownHandlers(server);
-
+  
 } catch (error) {
   logger.fatal(error, "Application failed to start");
- 
+  
   process.exit(1);
 }
 }

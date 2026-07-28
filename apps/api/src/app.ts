@@ -2,7 +2,7 @@ import express from "express";
 import type { Express } from "express";
 import {pinoHttp} from "pino-http";
 import { logger } from "@salon/logger";
-import { registerHealthRoutes } from "./http/routes/health.route.js";
+import { registerRoutes } from "./http/routes/index.js";
 import { registerMiddleware } from "./http/middlewares/index.js";
 
 /**
@@ -29,7 +29,7 @@ export function createApp() : Express {
   app.use(express.json());
 
   // Register application routes.
-  registerHealthRoutes(app);
+  registerRoutes(app);
 
   //register middlewares
   registerMiddleware(app);

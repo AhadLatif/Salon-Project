@@ -1,6 +1,9 @@
-import "dotenv/config";
-
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+import { resolve } from "path";
+
+// Tell dotenv to look 3 folders up for the root .env
+config({ path: resolve(__dirname, "../../../.env") });
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -10,16 +13,11 @@ if (!databaseUrl) {
 
 export default defineConfig({
   dialect: "postgresql",
-
- schema:
-    "./packages/infrastructure/database/src/schema/index.ts",
-
-  out: "./packages/infrastructure/database/migrations",
-
+  schema: "./src/schema/index.ts", // Ensure this path correctly points to your exported tables
+  out: "./migrations",
   dbCredentials: {
     url: databaseUrl,
   },
-
   verbose: true,
   strict: true,
 });

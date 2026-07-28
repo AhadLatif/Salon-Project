@@ -1,0 +1,28 @@
+# infrastructure/docker/compose.yml
+services:
+  postgres:
+    # 1. THE IMAGE: We use the official PostgreSQL version 18 based on Alpine Linux. 
+    # Alpine is incredibly small and fast, perfect for local dev and VPS deployment.
+    image: postgres:18-alpine
+    container_name: salon_postgres
+    restart: unless-stopped
+    
+    # 2. THE SECRETS: We tell Postgres what credentials to use when it wakes up.
+    # It reads these from your root .env file.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      
+    # 3. THE DOORS: We map port 5432 inside the container to port 5432 on your laptop,
+    # so your API and Drizzle can "talk" to it.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+      
+    # 4. THE SAFE: Docker containers wipe their memory when destroyed. 
+    # A "volume" saves your data permanently to your actual hard drive so you don't lose users when you restart.
+    volumes:
+      - salon_pg_data:/var/lib/postgresql/
+
+volumes:
+  salon_pg_data:

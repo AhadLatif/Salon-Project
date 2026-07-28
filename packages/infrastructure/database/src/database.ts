@@ -1,13 +1,17 @@
-import { drizzle } from "drizzle-orm/node-postgres";
+// packages/infrastructure/database/src/index.ts
 
-import { pool } from "./client.js";
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { pool } from './client.js';
 
-/**
- * Shared Drizzle ORM instance.
- *
- * Every module imports this object to execute database queries.
- * The underlying PostgreSQL connection is provided by the shared pool.
- */
-export const database = drizzle({
-  client: pool,
-});
+// Import all your schemas (make sure you have an index.js exporting them all)
+import * as schema from './schema/index.js'; 
+// 2. Export the schemas so your generic repositories can use the types later
+export * from './schema/index.js';
+
+
+// 1. Wrap the pool in Drizzle ORM
+export const db = drizzle(pool, { schema });
+
+
+// 3. Export the pool utilities for graceful shutdown in the API
+export { pool, closePool } from './client.js';
