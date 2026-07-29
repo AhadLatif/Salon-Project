@@ -1,6 +1,3 @@
-import { generateId } from '../shared/index.js';
-import { helperTimeStamp } from '../shared/index.js';
-
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -8,14 +5,12 @@ import {
   pgEnum,
   pgTable,
   text,
-  uuid,
-  varchar,
   timestamp,
   uniqueIndex,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
-
-
-
+import { generateId, helperTimeStamp } from '../shared/index.js';
 
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended', 'deleted']);
 

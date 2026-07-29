@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql } from 'drizzle-orm';
 import {
   check,
   index,
@@ -10,92 +10,73 @@ import {
   uniqueIndex,
   uuid,
   varchar,
-} from "drizzle-orm/pg-core";
+} from 'drizzle-orm/pg-core';
+import { generateId, helperTimeStamp } from '../shared/index.js';
+import { users } from './users.js';
 
-
-import { users } from "./users.js";
-import {generateId, helperTimeStamp} from "../shared/index.js"
-
-
-
-
-export const authProviderEnum = pgEnum("auth_provider", [
-  "email",
-  "google",
-  "apple",
-  "microsoft",
-]);
-
-
+export const authProviderEnum = pgEnum('auth_provider', ['email', 'google', 'apple', 'microsoft']);
 
 export const userAuthProviders = pgTable(
-  "user_auth_providers",
+  'user_auth_providers',
   {
-    id: uuid("id")
+    id: uuid('id')
       .primaryKey()
       .$defaultFn(() => generateId()),
 
-    userId: uuid("user_id")
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       }),
 
-    provider: authProviderEnum("provider").notNull(),
+    provider: authProviderEnum('provider').notNull(),
 
-    providerUserId: varchar("provider_user_id", {
+    providerUserId: varchar('provider_user_id', {
       length: 255,
     }).notNull(),
 
-    providerEmail: varchar("provider_email", {
+    providerEmail: varchar('provider_email', {
       length: 320,
     }),
 
-    providerEmailVerifiedAt: timestamp("provider_email_verified_at", {
+    providerEmailVerifiedAt: timestamp('provider_email_verified_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     }),
 
-    passwordHash: text("password_hash"),
+    passwordHash: text('password_hash'),
 
-    providerProfile: jsonb("provider_profile"),
+    providerProfile: jsonb('provider_profile'),
 
-    linkedAt: timestamp("linked_at", {
+    linkedAt: timestamp('linked_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     })
       .defaultNow()
       .notNull(),
 
-    lastUsedAt: timestamp("last_used_at", {
+    lastUsedAt: timestamp('last_used_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     }),
 
-  
     ...helperTimeStamp,
   },
   (table) => [
-    index("idx_user_auth_providers_user").on(table.userId),
+    index('idx_user_auth_providers_user').on(table.userId),
 
-    index("idx_user_auth_providers_last_used").on(table.lastUsedAt),
+    index('idx_user_auth_providers_last_used').on(table.lastUsedAt),
 
-    uniqueIndex("uq_user_auth_provider").on(
-      table.provider,
-      table.providerUserId,
-    ),
+    uniqueIndex('uq_user_auth_provider').on(table.provider, table.providerUserId),
 
-    uniqueIndex("uq_user_email_provider")
+    uniqueIndex('uq_user_email_provider')
       .on(sql`lower(${table.providerEmail})`)
       .where(sql`${table.provider} = 'email'`),
 
-    check(
-      "chk_provider_user_id",
-      sql`length(trim(${table.providerUserId})) > 0`,
-    ),
+    check('chk_provider_user_id', sql`length(trim(${table.providerUserId})) > 0`),
 
     check(
-      "chk_email_provider_password",
+      'chk_email_provider_password',
       sql`
       (
         ${table.provider} = 'email'
@@ -106,6 +87,7 @@ export const userAuthProviders = pgTable(
         ${table.provider} <> 'email'
         AND ${table.passwordHash} IS NULL
       )
-    `),
+    `,
+    ),
   ],
 );

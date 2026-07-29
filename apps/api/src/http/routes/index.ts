@@ -1,7 +1,6 @@
-import type { Express } from "express";
-import { registerHealthRoutes } from "./health.route.js";
+import type { Express } from 'express';
+import { registerHealthRoutes } from './health.route.js';
 
-
-export function registerRoutes(app:Express) : void {
-    registerHealthRoutes(app);
+export function registerRoutes(app: Express): void {
+  registerHealthRoutes(app);
 }

@@ -17,7 +17,7 @@ services:
     # 3. THE DOORS: We map port 5432 inside the container to port 5432 on your laptop,
     # so your API and Drizzle can "talk" to it.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
       
     # 4. THE SAFE: Docker containers wipe their memory when destroyed. 
     # A "volume" saves your data permanently to your actual hard drive so you don't lose users when you restart.

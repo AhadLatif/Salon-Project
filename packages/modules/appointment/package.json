@@ -20,6 +20,9 @@
     "clean": "rm -rf dist"
   },
 
+  "dependencies": {
+    "@salon/customer": "workspace:*"
+  },
   "devDependencies": {
     "@salon/typescript-config": "workspace:*",
     "typescript": "^6.0.3"

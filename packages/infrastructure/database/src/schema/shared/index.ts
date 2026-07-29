@@ -1,2 +1,2 @@
-export * from "./timestamps.js"
-export * from "./id.js"
+export * from './id.js';
+export * from './timestamps.js';

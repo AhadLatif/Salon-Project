@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql } from 'drizzle-orm';
 import {
   check,
   index,
@@ -10,105 +10,91 @@ import {
   uniqueIndex,
   uuid,
   varchar,
-} from "drizzle-orm/pg-core";
+} from 'drizzle-orm/pg-core';
 
-import {generateId, helperTimeStamp} from "../shared/index.js"
+import { generateId, helperTimeStamp } from '../shared/index.js';
+import { userAuthProviders } from './user_auth_providers.js';
+import { users } from './users.js';
 
-import { users } from "./users.js";
-import { userAuthProviders } from "./user_auth_providers.js";
+export const deviceTypeEnum = pgEnum('device_type', ['desktop', 'mobile', 'tablet', 'unknown']);
 
-
-export const deviceTypeEnum = pgEnum("device_type", [
-  "desktop",
-  "mobile",
-  "tablet",
-  "unknown",
-]);
-
-export const sessionRevokeReasonEnum = pgEnum("session_revoke_reason", [
-  "logout",
-  "logout_all",
-  "compromised",
-  "expired",
-  "admin",
+export const sessionRevokeReasonEnum = pgEnum('session_revoke_reason', [
+  'logout',
+  'logout_all',
+  'compromised',
+  'expired',
+  'admin',
 ]);
 
 export const userSessions = pgTable(
-  "user_sessions",
+  'user_sessions',
   {
-    id: uuid("id")
+    id: uuid('id')
       .primaryKey()
       .$defaultFn(() => generateId()),
 
-    userId: uuid("user_id")
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       }),
 
-    authProviderId: uuid("auth_provider_id")
+    authProviderId: uuid('auth_provider_id')
       .notNull()
       .references(() => userAuthProviders.id, {
-        onDelete: "restrict",
+        onDelete: 'cascade',
       }),
 
-    refreshTokenHash: text("refresh_token_hash").notNull(),
+    refreshTokenHash: text('refresh_token_hash').notNull(),
 
-    deviceName: varchar("device_name", {
+    deviceName: varchar('device_name', {
       length: 255,
     }),
 
-    deviceType: deviceTypeEnum("device_type")
-      .default("unknown")
-      .notNull(),
+    deviceType: deviceTypeEnum('device_type').default('unknown').notNull(),
 
-    userAgent: text("user_agent"),
+    userAgent: text('user_agent'),
 
-    createdIp: inet("created_ip"),
+    createdIp: inet('created_ip'),
 
-    lastIp: inet("last_ip"),
+    lastIp: inet('last_ip'),
 
-    expiresAt: timestamp("expires_at", {
+    expiresAt: timestamp('expires_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     }).notNull(),
 
-    lastUsedAt: timestamp("last_used_at", {
+    lastUsedAt: timestamp('last_used_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     })
       .defaultNow()
       .notNull(),
 
-    revokedAt: timestamp("revoked_at", {
+    revokedAt: timestamp('revoked_at', {
       withTimezone: true,
-      mode: "date",
+      mode: 'date',
     }),
 
-    revokeReason: sessionRevokeReasonEnum("revoke_reason"),
+    revokeReason: sessionRevokeReasonEnum('revoke_reason'),
 
     ...helperTimeStamp,
   },
   (table) => [
-    index("idx_user_sessions_user").on(table.userId),
+    index('idx_user_sessions_user').on(table.userId),
 
-    index("idx_user_sessions_provider").on(table.authProviderId),
+    index('idx_user_sessions_provider').on(table.authProviderId),
 
-    index("idx_user_sessions_expires").on(table.expiresAt),
+    index('idx_user_sessions_expires').on(table.expiresAt),
 
-    index("idx_user_sessions_last_used").on(table.lastUsedAt),
+    index('idx_user_sessions_last_used').on(table.lastUsedAt),
 
-    uniqueIndex("uq_user_sessions_refresh_token_hash").on(
-      table.refreshTokenHash,
-    ),
+    uniqueIndex('uq_user_sessions_refresh_token_hash').on(table.refreshTokenHash),
 
-    check(
-      "chk_user_sessions_expiry",
-      sql`${table.expiresAt} > ${table.createdAt}`,
-    ),
+    check('chk_user_sessions_expiry', sql`${table.expiresAt} > ${table.createdAt}`),
 
     check(
-      "chk_user_sessions_revocation",
+      'chk_user_sessions_revocation',
       sql`
         (
           ${table.revokedAt} IS NULL

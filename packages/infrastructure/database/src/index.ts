@@ -1,2 +1,1 @@
-
-export { db, pool, closePool } from "./database.js";
+export { closePool, db, pool } from './database.js';

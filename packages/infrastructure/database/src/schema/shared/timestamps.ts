@@ -1,19 +1,18 @@
-import { timestamp } from "drizzle-orm/pg-core";
+import { timestamp } from 'drizzle-orm/pg-core';
 
 export const helperTimeStamp = {
-  createdAt: timestamp("created_at", {
+  createdAt: timestamp('created_at', {
     withTimezone: true,
-    mode: "date",
+    mode: 'date',
   })
     .notNull()
     .defaultNow(),
 
-  updatedAt: timestamp("updated_at", {
+  updatedAt: timestamp('updated_at', {
     withTimezone: true,
-    mode: "date",
+    mode: 'date',
   })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
 } as const;
-

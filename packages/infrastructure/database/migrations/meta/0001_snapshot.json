@@ -1,136 +1,9 @@
 {
-  "id": "19e16111-0f93-43a4-968a-9fdbcb699107",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "2dce66c2-127a-44f5-9660-d3d000f4d277",
+  "prevId": "19e16111-0f93-43a4-968a-9fdbcb699107",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.users": {
-      "name": "users",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "first_name": {
-          "name": "first_name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_name": {
-          "name": "last_name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "primary_email": {
-          "name": "primary_email",
-          "type": "varchar(320)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "primary_phone": {
-          "name": "primary_phone",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "avatar_url": {
-          "name": "avatar_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "user_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "email_verified_at": {
-          "name": "email_verified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone_verified_at": {
-          "name": "phone_verified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_users_status": {
-          "name": "idx_users_status",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "uq_users_primary_email": {
-          "name": "uq_users_primary_email",
-          "columns": [
-            {
-              "expression": "lower(\"primary_email\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "chk_users_first_name": {
-          "name": "chk_users_first_name",
-          "value": "length(trim(\"users\".\"first_name\")) > 0"
-        },
-        "chk_users_last_name": {
-          "name": "chk_users_last_name",
-          "value": "length(trim(\"users\".\"last_name\")) > 0"
-        },
-        "chk_users_primary_phone_e164": {
-          "name": "chk_users_primary_phone_e164",
-          "value": "\"users\".\"primary_phone\" IS NULL\n          OR \"users\".\"primary_phone\" ~ '^\\+[1-9][0-9]{1,14}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.user_auth_providers": {
       "name": "user_auth_providers",
       "schema": "",
@@ -501,7 +374,7 @@
           "tableTo": "user_auth_providers",
           "columnsFrom": ["auth_provider_id"],
           "columnsTo": ["id"],
-          "onDelete": "restrict",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -677,14 +550,136 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primary_email": {
+          "name": "primary_email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primary_phone": {
+          "name": "primary_phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "user_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "email_verified_at": {
+          "name": "email_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_verified_at": {
+          "name": "phone_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_users_status": {
+          "name": "idx_users_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uq_users_primary_email": {
+          "name": "uq_users_primary_email",
+          "columns": [
+            {
+              "expression": "lower(\"primary_email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "chk_users_first_name": {
+          "name": "chk_users_first_name",
+          "value": "length(trim(\"users\".\"first_name\")) > 0"
+        },
+        "chk_users_last_name": {
+          "name": "chk_users_last_name",
+          "value": "length(trim(\"users\".\"last_name\")) > 0"
+        },
+        "chk_users_primary_phone_e164": {
+          "name": "chk_users_primary_phone_e164",
+          "value": "\"users\".\"primary_phone\" IS NULL\n          OR \"users\".\"primary_phone\" ~ '^\\+[1-9][0-9]{1,14}$'"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
-    "public.user_status": {
-      "name": "user_status",
-      "schema": "public",
-      "values": ["active", "suspended", "deleted"]
-    },
     "public.auth_provider": {
       "name": "auth_provider",
       "schema": "public",
@@ -704,6 +699,11 @@
       "name": "user_token_type",
       "schema": "public",
       "values": ["email_verification", "password_reset", "email_change", "magic_link", "invitation"]
+    },
+    "public.user_status": {
+      "name": "user_status",
+      "schema": "public",
+      "values": ["active", "suspended", "deleted"]
     }
   },
   "schemas": {},

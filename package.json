@@ -17,11 +17,15 @@
     "format:check": "biome format .",
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",
-    "check": "biome check ."
+    "check": "turbo typecheck && biome check . && pnpm run depcruise",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "depcruise:watch": "depcruise --watch --config .dependency-cruiser.cjs apps packages",
+    "depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type html --output-to docs/architecture/architecture-report.html apps packages"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
     "@types/node": "^26.0.1",
+    "dependency-cruiser": "^18.1.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.23.1",
