@@ -376,53 +376,56 @@ module.exports = {
     // -----------------------------------------------------------------------------
 
     {
-      name: 'no-importing-module-api',
+      name: "no-importing-module-api",
       comment: "Modules must not import another module's API layer directly.",
-      severity: 'error',
+      severity: "error",
       from: {
-        path: MODULES,
+        path: "^packages/modules/([^/]+)/" // Captures the module name in $1
       },
       to: {
-        path: '^packages/modules/[^/]+/src/api/',
-      },
+        path: "^packages/modules/[^/]+/src/api/",
+        pathNot: "^packages/modules/$1/" // Allows the import if it's the SAME module
+      }
     },
 
     {
-      name: 'no-importing-module-application',
+      name: "no-importing-module-application",
       comment: "Modules must not import another module's Application layer.",
-      severity: 'error',
+      severity: "error",
       from: {
-        path: MODULES,
+        path: "^packages/modules/([^/]+)/"
       },
       to: {
-        path: '^packages/modules/[^/]+/src/application/',
-      },
+        path: "^packages/modules/[^/]+/src/application/",
+        pathNot: "^packages/modules/$1/"
+      }
     },
 
     {
-      name: 'no-importing-module-domain',
+      name: "no-importing-module-domain",
       comment: "Modules must not import another module's Domain layer.",
-      severity: 'error',
+      severity: "error",
       from: {
-        path: MODULES,
+        path: "^packages/modules/([^/]+)/"
       },
       to: {
-        path: '^packages/modules/[^/]+/src/domain/',
-      },
+        path: "^packages/modules/[^/]+/src/domain/",
+        pathNot: "^packages/modules/$1/"
+      }
     },
 
     {
-      name: 'no-importing-module-infrastructure',
+      name: "no-importing-module-infrastructure",
       comment: "Modules must not import another module's Infrastructure layer.",
-      severity: 'error',
+      severity: "error",
       from: {
-        path: MODULES,
+        path: "^packages/modules/([^/]+)/"
       },
       to: {
-        path: '^packages/modules/[^/]+/src/infrastructure/',
-      },
+        path: "^packages/modules/[^/]+/src/infrastructure/",
+        pathNot: "^packages/modules/$1/"
+      }
     },
-
     // =========================================================================
     // Shared Rules
     // =========================================================================
@@ -441,17 +444,21 @@ module.exports = {
       },
     },
 
+   // Fix for the repository/database rules CodeRabbit mentioned (lines 499-539)
     {
-      name: 'modules-cannot-access-other-module-repositories',
-      comment: 'Repositories are private to their owning module.',
-      severity: 'error',
+      name: "modules-cannot-access-other-module-repositories",
+      comment: "Repositories are private to their owning module.",
+      severity: "error",
       from: {
-        path: MODULES,
+        path: "^packages/modules/([^/]+)/"
       },
       to: {
-        path: 'repository|repositories',
-        pathNot: ['^packages/modules/[^/]+/src/domain/'],
-      },
+        path: "repository|repositories",
+        pathNot: [
+          "^packages/modules/[^/]+/src/domain/", // Allow domain interfaces
+          "^packages/modules/$1/"                 // Allow own module repositories
+        ]
+      }
     },
 
     {

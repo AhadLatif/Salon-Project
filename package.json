@@ -20,7 +20,8 @@
     "check": "turbo typecheck && biome check . && pnpm run depcruise",
     "depcruise": "depcruise --config .dependency-cruiser.cjs apps packages",
     "depcruise:watch": "depcruise --watch --config .dependency-cruiser.cjs apps packages",
-    "depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type html --output-to docs/architecture/architecture-report.html apps packages"
+    "depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type html --output-to docs/architecture/architecture-report.html apps packages",
+    "depcruise:report": "depcruise --config .dependency-cruiser.cjs --output-type json --output-to depcruise.json apps packages"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
