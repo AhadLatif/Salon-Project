@@ -1,14 +1,11 @@
-// Don't point Drizzle at every file individually.
-// Create one barrel.
+// Keep Drizzle pointed at one root entry file.
+// Each folder now exposes its own barrel, so new schema files can be added
+// by updating the folder barrel instead of the root file.
 
-export * from './identity/user_auth_providers.js';
-export * from './identity/user_sessions.js';
-export * from './identity/user_tokens.js';
-export * from './identity/users.js';
+export * from './business/index.js';
+export * from './identity/index.js';
+export * from './RBAC/index.js';
 
-// Later we will simply add:
-
-// export * from "./booking/appointments";
-// export * from "./inventory/products";
-
-// This keeps drizzle.config.ts unchanged forever.
+// Later you can add a new module by creating its own folder barrel and exporting it here:
+// export * from './booking/index.js';
+// export * from './inventory/index.js';
