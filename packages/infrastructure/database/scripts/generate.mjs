@@ -1,6 +1,5 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 
-// Grab the argument passed after the script name
 const args = process.argv.slice(2);
 const migrationName = args[0];
 
@@ -10,11 +9,23 @@ if (!migrationName) {
   process.exit(1);
 }
 
+const isValidMigrationName = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
+
+if (!isValidMigrationName.test(migrationName)) {
+  console.error(
+    '\n❌ ERROR: Migration name must use lowercase snake_case and contain no spaces or shell metacharacters.',
+  );
+  console.error('💡 EXAMPLE: pnpm db:generate add_payment_gateway_idempotency\n');
+  process.exit(1);
+}
+
 console.log(`\n🚀 Generating migration: ${migrationName}...\n`);
 
 try {
-  // Executes Drizzle Kit and pipes the output directly to your terminal
-  execSync(`npx drizzle-kit generate --name ${migrationName}`, { stdio: 'inherit' });
+  const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  execFileSync(npxCommand, ['drizzle-kit', 'generate', '--name', migrationName], {
+    stdio: 'inherit',
+  });
 } catch (error) {
   console.error('\n❌ Migration generation failed.', error);
   process.exit(1);

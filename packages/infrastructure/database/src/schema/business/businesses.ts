@@ -1,4 +1,4 @@
-import { index, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const businessStatusEnum = pgEnum('business_status', [
   'pending',
@@ -17,6 +17,7 @@ export const businesses = pgTable(
     email: text('email').notNull(),
     phoneNumber: text('phone_number').notNull(),
     status: businessStatusEnum('status').notNull().default('pending'),
+    socialLinks: jsonb('social_links'),
     verifiedAt: timestamp('verified_at', { withTimezone: true, mode: 'date' }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })

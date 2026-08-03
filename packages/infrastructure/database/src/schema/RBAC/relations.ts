@@ -1,5 +1,4 @@
 import { relations } from 'drizzle-orm';
-import { businesses } from '../business/businesses.js';
 import { businessMembers } from './business_members.js';
 import { businessRolePermissions } from './business_role_permissions.js';
 import { businessRoles } from './business_roles.js';
@@ -9,11 +8,8 @@ export const permissionsRelations = relations(permissions, ({ many }) => ({
   rolePermissions: many(businessRolePermissions),
 }));
 
-export const businessRolesRelations = relations(businessRoles, ({ one, many }) => ({
-  business: one(businesses, {
-    fields: [businessRoles.businessId],
-    references: [businesses.id],
-  }),
+export const businessRolesRelations = relations(businessRoles, ({ many }) => ({
+  // REMOVED: business: one(businesses), -> Cross-Module Violation
   permissions: many(businessRolePermissions),
   members: many(businessMembers),
 }));
@@ -30,10 +26,7 @@ export const businessRolePermissionsRelations = relations(businessRolePermission
 }));
 
 export const businessMembersRelations = relations(businessMembers, ({ one }) => ({
-  business: one(businesses, {
-    fields: [businessMembers.businessId],
-    references: [businesses.id],
-  }),
+  //  REMOVED: business: one(businesses), -> Cross-Module Violation
   role: one(businessRoles, {
     fields: [businessMembers.roleId],
     references: [businessRoles.id],

@@ -8,8 +8,8 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { businesses } from '../business/businesses.js';
 
+import { businesses } from '../business/businesses.js';
 export const businessRoles = pgTable(
   'business_roles',
   {

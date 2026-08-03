@@ -1,4 +1,14 @@
-import { char, index, numeric, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  char,
+  index,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { businesses } from './businesses.js'; // Adjust path as needed
 
 export const branchStatusEnum = pgEnum('branch_status', ['active', 'inactive', 'archived']);
@@ -34,6 +44,7 @@ export const branches = pgTable(
     index('idx_branches_business').on(table.businessId),
     index('idx_branches_status').on(table.status),
     index('idx_branches_city').on(table.city),
+    unique('uq_branches_tenant').on(table.businessId, table.id),
     // ❌ REMOVED: unique('uq_branches_business_name').on(table.businessId, table.name),
   ],
 );
