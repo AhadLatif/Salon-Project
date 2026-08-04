@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "@salon/shared": ["packages/shared/src/index.ts"],
+      "@salon/*": [
+        "packages/modules/*/src/index.ts",
+        "packages/modules/*/src/main.ts",
+        "packages/infrastructure/*/src/index.ts"
+      ]
+    }
+  }
+}

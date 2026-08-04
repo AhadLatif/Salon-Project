@@ -14,4 +14,4 @@
  If it stays empty, we'll delete it.
  */
 
-export { config } from "./config.js";
+export { config } from './config.js';

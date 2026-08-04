@@ -1,8 +1,7 @@
-import type { Express } from 'express';
 import type { Server } from 'node:http';
-
 import { config } from '@salon/config';
 import { logger } from '@salon/logger';
+import type { Express } from 'express';
 
 /**
  * @Responsible for:
@@ -13,14 +12,9 @@ import { logger } from '@salon/logger';
  */
 
 export function startServer(app: Express): Server {
-
   const server = app.listen(config.server.port, config.server.host, () => {
-    
     logger.info(`HTTP server listening at http://${config.server.host}:${config.server.port}`);
   });
 
   return server;
 }
-
-
-

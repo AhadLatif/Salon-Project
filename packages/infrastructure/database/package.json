@@ -14,7 +14,13 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+
+    "db:generate": "node scripts/generate.mjs",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:drop": "drizzle-kit drop"
   },
   "devDependencies": {
     "@salon/typescript-config": "workspace:*",
@@ -25,6 +31,7 @@
     "@salon/config": "workspace:*",
     "@salon/logger": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "uuid": "^14.0.1"
   }
 }

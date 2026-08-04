@@ -11,13 +11,13 @@ Parse
 Build configuration
 */
 
+import path from 'node:path';
+import { config as loadEnv } from 'dotenv';
+import { expand } from 'dotenv-expand';
 
-import { config as loadEnv } from 'dotenv'
-import { expand } from 'dotenv-expand'
-
-import path from 'node:path'
-
-expand(loadEnv({
-  path: path.resolve(process.cwd(), '../../.env'),
-  override: false  // don't override vars already set by the shell/CI
-}))
+expand(
+  loadEnv({
+    path: path.resolve(process.cwd(), '../../.env'),
+    override: false, // don't override vars already set by the shell/CI
+  }),
+);

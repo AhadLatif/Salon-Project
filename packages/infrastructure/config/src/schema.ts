@@ -14,33 +14,22 @@
  * config.server.port returns a number, not a string.
  */
 
-import { z } from "zod";
+import { z } from 'zod';
 
 export const environmentSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
 
-  
-  NODE_ENV: z.enum(["development", "test", "production"]),
-  
-  APP_NAME : z.string().min(1).default("Salon-Project"),
+  APP_NAME: z.string().min(1).default('Salon-Project'),
 
+  HOST: z.string().default('0.0.0.0'),
 
-  HOST: z.string().default("0.0.0.0"),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000), // <-- default port is 3000 while validation
 
-  PORT: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(65535)
-    .default(3000), // <-- default port is 3000 while validation
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
-   LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
-    .default("info"),
-
-    DATABASE_URL: z.url({
-      protocol: /^postgres(?:ql)?$/,
-    }),
-
+  DATABASE_URL: z.url({
+    protocol: /^postgres(?:ql)?$/,
+  }),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

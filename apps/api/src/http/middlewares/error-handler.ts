@@ -1,15 +1,7 @@
-import type {
-  ErrorRequestHandler,
-} from "express";
+import { logger } from '@salon/logger';
+import type { ErrorRequestHandler } from 'express';
 
-import { logger } from "@salon/logger";
-
-export const errorHandler: ErrorRequestHandler = (
-  error,
-  _request,
-  response,
-  _next,
-) => {
+export const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
   logger.error(error);
 
   if (response.headersSent) {
@@ -18,8 +10,8 @@ export const errorHandler: ErrorRequestHandler = (
 
   response.status(500).json({
     error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "An unexpected error occurred.",
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred.',
     },
   });
 };
