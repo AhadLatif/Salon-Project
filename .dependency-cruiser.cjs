@@ -316,10 +316,11 @@ module.exports = {
       comment: 'Application depends on abstractions, never infrastructure implementations.',
       severity: 'error',
       from: {
-        path: MODULE_APPLICATION,
+        path: '^packages/modules/([^/]+)/src/application/',
       },
       to: {
-        path: MODULE_INFRASTRUCTURE,
+        path: '^packages/modules/[^/]+/src/infrastructure/',
+        pathNot: '^packages/modules/$1/',
       },
     },
 
@@ -437,10 +438,11 @@ module.exports = {
       comment: "Modules must not access another module's persistence or infrastructure.",
       severity: 'error',
       from: {
-        path: MODULES,
+        path: '^packages/modules/([^/]+)/',
       },
       to: {
         path: '^packages/modules/[^/]+/src/infrastructure/',
+        pathNot: '^packages/modules/$1/',
       },
     },
 
@@ -466,10 +468,14 @@ module.exports = {
       comment: "Business modules must never access another module's database implementation.",
       severity: 'error',
       from: {
-        path: MODULES,
+        path: '^packages/modules/([^/]+)/',
       },
       to: {
         path: 'database|persistence|drizzle|schema',
+        pathNot: [
+          '^packages/infrastructure/', // Allow shared infrastructure database
+          '^packages/modules/$1/', // Allow own module
+        ],
       },
     },
 

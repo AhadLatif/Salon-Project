@@ -1,17 +1,54 @@
-import { logger } from '@salon/logger';
-import type { ErrorRequestHandler } from 'express';
+import {
+  AppError,
+  ConflictError,
+  ResourceNotFoundError,
+  TenantIsolationError,
+  UnauthorizedError,
+  ValidationError,
+} from '@salon/shared';
+import type { NextFunction, Request, Response } from 'express';
 
-export const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
-  logger.error(error);
+export function globalErrorHandler(
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
+  // 1. If it's one of our known Operational AppErrors, handle it gracefully
+  if (err instanceof AppError) {
+    let statusCode = 500;
 
-  if (response.headersSent) {
-    return _next(error);
+    if (err instanceof ValidationError) statusCode = 400;
+    else if (err instanceof UnauthorizedError) statusCode = 401;
+    // Map TenantIsolation to 404 to obscure the existence of other tenants' data
+    else if (err instanceof ResourceNotFoundError || err instanceof TenantIsolationError)
+      statusCode = 404;
+    else if (err instanceof ConflictError) statusCode = 409;
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details || [],
+      },
+      meta: {
+        // TODO :In the future, we will attach request IDs here for tracing
+      },
+    });
+    return;
   }
 
-  response.status(500).json({
+  // 2. If it's an UNEXPECTED error (like a syntax error or DB crash)
+  console.error('[CRITICAL UNHANDLED ERROR]:', err);
+
+  res.status(500).json({
+    success: false,
     error: {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred.',
+      details: [],
     },
+    meta: {},
   });
-};
+}

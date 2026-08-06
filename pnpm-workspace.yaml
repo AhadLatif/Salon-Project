@@ -3,4 +3,5 @@ packages:
   - "packages/**" # (**) matches any level of subdirectory
   - "configs/*"
 allowBuilds:
+  bcrypt: true
   esbuild: true

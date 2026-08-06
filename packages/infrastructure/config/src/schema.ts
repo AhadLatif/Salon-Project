@@ -27,6 +27,8 @@ export const environmentSchema = z.object({
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long.'),
+
   DATABASE_URL: z.url({
     protocol: /^postgres(?:ql)?$/,
   }),

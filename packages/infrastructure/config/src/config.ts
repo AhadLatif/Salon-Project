@@ -44,6 +44,9 @@ export const config = Object.freeze({
     name: parsed.data.APP_NAME,
     environment: parsed.data.NODE_ENV,
   }),
+  secret: Object.freeze({
+    jwt: parsed.data.JWT_SECRET,
+  }),
 
   logging: Object.freeze({
     level: parsed.data.LOG_LEVEL,
