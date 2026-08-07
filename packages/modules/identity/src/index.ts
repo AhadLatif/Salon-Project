@@ -12,6 +12,8 @@ import { BcryptPasswordService } from './infrastructure/services/auth/password.s
 
 // --- 1. EXPORT ALL PORTS, CLASSES & TYPES (For Testing & Extension) ---
 export * from './api/controllers/auth.controller.js';
+export * from './api/docs/identity.openapi.js';
+export * from './api/dtos/register-user.schema.js';
 export * from './application/ports/password-service.port.js';
 export * from './application/ports/session-repository.port.js';
 export * from './application/ports/token-service.port.js';

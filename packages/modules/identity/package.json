@@ -24,8 +24,10 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@salon/database": "workspace:*",
     "@salon/shared": "workspace:*",
+    "@salon/validation": "workspace:*",
     "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",

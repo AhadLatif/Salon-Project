@@ -1,10 +1,18 @@
-// packages/modules/identity/src/api/dtos/register-user.dto.ts
+import { z } from '@salon/validation';
 
-import { z } from 'zod';
+export const registerUserSchema = z
+  .object({
+    firstName: z.string().min(1, 'First name is required').max(100).openapi({ example: 'John' }),
 
-export const registerUserSchema = z.object({
-  firstName: z.string().min(1, 'First name is required').max(100),
-  lastName: z.string().min(1, 'Last name is required').max(100),
-  email: z.email('Invalid email format').max(320),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
+    lastName: z.string().min(1, 'Last name is required').max(100).openapi({ example: 'Doe' }),
+
+    email: z.email('Invalid email format').max(320).openapi({ example: 'john.doe@example.com' }),
+
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .openapi({ example: 'SecureP@ssw0rd2026' }),
+  })
+  .openapi('RegisterUserDto');
+
+export type RegisterUserDto = z.infer<typeof registerUserSchema>;

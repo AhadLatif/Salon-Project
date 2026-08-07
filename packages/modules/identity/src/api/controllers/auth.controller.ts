@@ -22,16 +22,13 @@ export class AuthController {
       const parseResult = registerUserSchema.safeParse(req.body);
 
       if (!parseResult.success) {
-        const fieldErrors = parseResult.error.issues.reduce(
-          (acc, issue) => {
-            const fieldName = issue.path.join('.');
-            if (fieldName) {
-              acc[fieldName] = issue.message;
-            }
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
+        const fieldErrors: Record<string, string> = {};
+        for (const issue of parseResult.error.issues) {
+          const fieldName = issue.path.join('.');
+          if (fieldName) {
+            fieldErrors[fieldName] = issue.message;
+          }
+        }
 
         throw new ValidationError('Invalid registration data', fieldErrors);
       }
@@ -73,16 +70,13 @@ export class AuthController {
       const parseResult = loginSchema.safeParse(req.body);
 
       if (!parseResult.success) {
-        const fieldErrors = parseResult.error.issues.reduce(
-          (acc, issue) => {
-            const fieldName = issue.path.join('.');
-            if (fieldName) {
-              acc[fieldName] = issue.message;
-            }
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
+        const fieldErrors: Record<string, string> = {};
+        for (const issue of parseResult.error.issues) {
+          const fieldName = issue.path.join('.');
+          if (fieldName) {
+            fieldErrors[fieldName] = issue.message;
+          }
+        }
 
         throw new ValidationError('Invalid login data', fieldErrors);
       }
