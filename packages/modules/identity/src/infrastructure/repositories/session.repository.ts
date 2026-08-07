@@ -1,5 +1,5 @@
 import { type db, userSessions } from '@salon/database';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 
 import type {
   CreateSessionData,
@@ -42,14 +42,28 @@ export class SessionRepository implements ISessionRepository {
     return new SessionEntity(session as SessionProps);
   }
 
-  async rotateRefreshToken(sessionId: string, newHash: string): Promise<void> {
-    await this.database
+  async rotateRefreshToken(
+    sessionId: string,
+    expectedHash: string,
+    newHash: string,
+  ): Promise<boolean> {
+    const updated = await this.database
       .update(userSessions)
       .set({
         refreshTokenHash: newHash,
         lastUsedAt: new Date(),
       })
-      .where(eq(userSessions.id, sessionId));
+      .where(
+        and(
+          eq(userSessions.id, sessionId),
+          eq(userSessions.refreshTokenHash, expectedHash),
+          isNull(userSessions.revokedAt),
+          gt(userSessions.expiresAt, new Date()),
+        ),
+      )
+      .returning({ id: userSessions.id });
+
+    return updated.length === 1;
   }
 
   async revoke(sessionId: string, reason: SessionRevokeReason): Promise<void> {

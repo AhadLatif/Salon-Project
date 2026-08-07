@@ -11,7 +11,7 @@ export interface SessionProps {
   expiresAt: Date;
   lastUsedAt: Date;
   revokedAt?: Date | null;
-  revokeReason?: 'logout' | 'logout_all' | 'compromised' | 'expired' | 'admin' | null;
+  revokeReason?: 'logout' | 'logout_all' | 'compromised' | 'expired' | 'admin' | 'rotated' | null;
   createdAt: Date;
   updatedAt: Date;
 }

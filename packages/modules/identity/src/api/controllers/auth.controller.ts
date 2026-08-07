@@ -18,7 +18,6 @@ export class AuthController {
   // Controller has only these three tasks:
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-
       // 1. Parse the user raw data via zod
       const parseResult = registerUserSchema.safeParse(req.body);
 
@@ -37,10 +36,9 @@ export class AuthController {
         throw new ValidationError('Invalid registration data', fieldErrors);
       }
 
-      
       const { firstName, lastName, email, password } = parseResult.data;
 
-      // 2. give that parsed data to the uscase to perform business and other operations 
+      // 2. give that parsed data to the uscase to perform business and other operations
       const result = await this.registerUserUseCase.execute({
         firstName,
         lastName,
@@ -48,7 +46,7 @@ export class AuthController {
         passwordPlainText: password, // deliberately mapping API → command
       });
 
-      // 3. Respond back to the user 
+      // 3. Respond back to the user
       res.status(201).json({
         success: true,
         data: {
@@ -89,15 +87,15 @@ export class AuthController {
         throw new ValidationError('Invalid login data', fieldErrors);
       }
 
-      const { email, password, deviceName, deviceType, userAgent, ip } = parseResult.data;
+      const { email, password, deviceName, deviceType } = parseResult.data;
 
       const result = await this.loginUseCase.execute({
         email,
         passwordPlainText: password,
         deviceName,
         deviceType,
-        userAgent,
-        ip,
+        userAgent: req.get('user-agent'),
+        ip: req.ip,
       });
 
       res.status(200).json({

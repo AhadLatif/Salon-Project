@@ -16,7 +16,7 @@ export interface CreateSessionData {
 export interface ISessionRepository {
   create(data: CreateSessionData): Promise<SessionEntity>;
   findByRefreshTokenHash(hash: string): Promise<SessionEntity | null>;
-  rotateRefreshToken(sessionId: string, newHash: string): Promise<void>;
+  rotateRefreshToken(sessionId: string, expectedHash: string, newHash: string): Promise<boolean>;
   revoke(sessionId: string, reason: SessionRevokeReason): Promise<void>;
   revokeAllForUser(userId: string, reason: SessionRevokeReason): Promise<void>;
 }

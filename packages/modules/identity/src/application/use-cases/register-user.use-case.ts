@@ -1,4 +1,4 @@
-import { ConflictError, UnauthorizedError } from '@salon/shared';
+import { ConflictError } from '@salon/shared';
 import type { UserEntity } from '../../domain/entities/user.entity.js';
 import type { IPasswordService } from '../ports/password-service.port.js';
 import type { ISessionRepository } from '../ports/session-repository.port.js';
@@ -52,7 +52,9 @@ export class RegisterUserUseCase {
     // 5. Find the email auth provider (required by user_sessions FK)
     const authProviderId = await this.userRepository.findEmailAuthProvider(createdUser.id);
     if (!authProviderId) {
-      throw new UnauthorizedError('Failed to create email auth provider');
+      // Internal invariant broken: user was created but auth provider is missing.
+      // This is a 500, not a 401. Do not leak internal details to the client.
+      throw new Error(`Email auth provider missing for newly created user ${createdUser.id}`);
     }
 
     // 6. Auto-session: create a session so the user is logged in immediately

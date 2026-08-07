@@ -12,8 +12,14 @@ export function globalErrorHandler(
   err: Error,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ): void {
+  // The response has already started. Only the default handler can recover.
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
   // 1. If it's one of our known Operational AppErrors, handle it gracefully
   if (err instanceof AppError) {
     let statusCode = 500;
@@ -30,7 +36,7 @@ export function globalErrorHandler(
       error: {
         code: err.code,
         message: err.message,
-        details: err.details || [],
+        details: err.details ?? {},
       },
       meta: {
         // TODO :In the future, we will attach request IDs here for tracing
@@ -47,7 +53,7 @@ export function globalErrorHandler(
     error: {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred.',
-      details: [],
+      details: {},
     },
     meta: {},
   });

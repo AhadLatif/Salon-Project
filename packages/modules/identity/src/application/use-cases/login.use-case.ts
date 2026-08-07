@@ -5,6 +5,10 @@ import type { ISessionRepository } from '../ports/session-repository.port.js';
 import type { ITokenService } from '../ports/token-service.port.js';
 import type { IUserRepository } from '../ports/user-repository.port.js';
 
+// Dummy hash for constant-time comparison when user/password hash is missing.
+// This prevents timing attacks that could enumerate registered emails.
+const DUMMY_PASSWORD_HASH = '$2b$10$C6UzMDM.H6dfI/f/IKcEe.6z7Y3G0F1XeQ7v1lJ2wq9pQ0j1nHq3u';
+
 export interface LoginCommand {
   email: string;
   passwordPlainText: string;
@@ -31,54 +35,60 @@ export class LoginUseCase {
   async execute(command: LoginCommand): Promise<LoginResult> {
     // 1. Find user by email
     const user = await this.userRepository.findByEmail(command.email);
-    if (!user) {
+
+    if (user) {
+      // 2. Verify password (user exists)
+      const passwordHash = await this.userRepository.findUserPassword(user.id);
+      if (!passwordHash) {
+        // Internal invariant broken: user exists but has no password hash.
+        // Run dummy comparison to keep timing uniform, then fail with 500.
+        await this.passwordService.compare(command.passwordPlainText, DUMMY_PASSWORD_HASH);
+        throw new Error(`Password hash missing for user ${user.id}`);
+      }
+
+      const passwordMatches = await this.passwordService.compare(
+        command.passwordPlainText,
+        passwordHash,
+      );
+      if (!passwordMatches) {
+        throw new UnauthorizedError('Invalid credentials');
+      }
+
+      // 3. Find the email auth provider (required by user_sessions FK)
+      const authProviderId = await this.userRepository.findEmailAuthProvider(user.id);
+      if (!authProviderId) {
+        throw new UnauthorizedError('Invalid credentials');
+      }
+
+      // 4. Generate opaque refresh token + hash it for storage
+      const refreshToken = this.tokenService.generateRefreshToken();
+      const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
+
+      // 5. Create a session row (stateful refresh token)
+      await this.sessionRepository.create({
+        userId: user.id,
+        authProviderId,
+        refreshTokenHash,
+        deviceName: command.deviceName ?? null,
+        deviceType: command.deviceType,
+        userAgent: command.userAgent ?? null,
+        createdIp: command.ip ?? null,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+
+      // 6. Generate stateless access token
+      const tokenPayload = { userId: user.id, email: user.primaryEmail };
+      const accessToken = this.tokenService.generateAccessToken(tokenPayload);
+
+      return {
+        user,
+        accessToken,
+        refreshToken,
+      };
+    } else {
+      // User not found — run dummy comparison to keep timing uniform
+      await this.passwordService.compare(command.passwordPlainText, DUMMY_PASSWORD_HASH);
       throw new UnauthorizedError('Invalid credentials');
     }
-
-    // 2. Verify password
-    const passwordHash = await this.userRepository.findUserPassword(user.id);
-    if (!passwordHash) {
-      throw new UnauthorizedError('Invalid credentials');
-    }
-
-    const passwordMatches = await this.passwordService.compare(
-      command.passwordPlainText,
-      passwordHash,
-    );
-    if (!passwordMatches) {
-      throw new UnauthorizedError('Invalid credentials');
-    }
-
-    // 3. Find the email auth provider (required by user_sessions FK)
-    const authProviderId = await this.userRepository.findEmailAuthProvider(user.id);
-    if (!authProviderId) {
-      throw new UnauthorizedError('Invalid credentials');
-    }
-
-    // 4. Generate opaque refresh token + hash it for storage
-    const refreshToken = this.tokenService.generateRefreshToken();
-    const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
-
-    // 5. Create a session row (stateful refresh token)
-    await this.sessionRepository.create({
-      userId: user.id,
-      authProviderId,
-      refreshTokenHash,
-      deviceName: command.deviceName ?? null,
-      deviceType: command.deviceType,
-      userAgent: command.userAgent ?? null,
-      createdIp: command.ip ?? null,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
-
-    // 6. Generate stateless access token
-    const tokenPayload = { userId: user.id, email: user.primaryEmail };
-    const accessToken = this.tokenService.generateAccessToken(tokenPayload);
-
-    return {
-      user,
-      accessToken,
-      refreshToken,
-    };
   }
 }

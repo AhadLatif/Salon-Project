@@ -54,7 +54,6 @@ export class UserEntity {
 
 // return new UserEntity(createdRecord as UserProps);
 
-
 // function toUserEntity(record: UserRow): UserEntity {
 //   return new UserEntity({
 //     id: record.id,

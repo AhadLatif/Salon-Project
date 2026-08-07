@@ -5,8 +5,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
   deviceName: z.string().max(255).optional(),
   deviceType: z.enum(['desktop', 'mobile', 'tablet', 'unknown']).default('unknown'),
-  userAgent: z.string().optional(),
-  ip: z.string().optional(),
 });
 
 export const refreshTokenSchema = z.object({
