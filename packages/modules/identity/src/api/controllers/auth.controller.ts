@@ -163,4 +163,21 @@ export class AuthController {
       next(error);
     }
   };
+
+  // Protected route: returns the authenticated user's info
+  me = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // req.user is set by the auth middleware
+      res.status(200).json({
+        success: true,
+        data: {
+          user: req.user,
+        },
+        error: null,
+        meta: {},
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

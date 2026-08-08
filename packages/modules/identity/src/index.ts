@@ -1,6 +1,7 @@
 import type { db } from '@salon/database';
 import { Router } from 'express';
 import { AuthController } from './api/controllers/auth.controller.js';
+import { createAuthMiddleware } from './api/middlewares/auth.middleware.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
 import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case.js';
@@ -14,6 +15,7 @@ import { BcryptPasswordService } from './infrastructure/services/auth/password.s
 export * from './api/controllers/auth.controller.js';
 export * from './api/docs/identity.openapi.js';
 export * from './api/dtos/register-user.schema.js';
+export * from './api/middlewares/auth.middleware.js';
 export * from './application/ports/password-service.port.js';
 export * from './application/ports/session-repository.port.js';
 export * from './application/ports/token-service.port.js';
@@ -37,6 +39,7 @@ export interface IdentityModuleDependencies {
 
 export interface IdentityModule {
   authRouter: Router;
+  authMiddleware: ReturnType<typeof createAuthMiddleware>;
   useCases: {
     registerUserUseCase: RegisterUserUseCase;
     loginUseCase: LoginUseCase;
@@ -80,15 +83,18 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     refreshTokenUseCase,
     logoutUseCase,
   );
+  const authMiddleware = createAuthMiddleware(jwtService);
   const authRouter = Router();
 
   authRouter.post('/register', authController.register);
   authRouter.post('/login', authController.login);
   authRouter.post('/refresh', authController.refresh);
   authRouter.post('/logout', authController.logout);
+  authRouter.get('/me', authMiddleware, authController.me);
 
   return {
     authRouter,
+    authMiddleware,
     useCases: {
       registerUserUseCase,
       loginUseCase,
