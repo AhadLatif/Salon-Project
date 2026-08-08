@@ -13,6 +13,7 @@ import { BcryptPasswordService } from './infrastructure/services/auth/password.s
 
 // --- 1. EXPORT ALL PORTS, CLASSES & TYPES (For Testing & Extension) ---
 export * from './api/controllers/auth.controller.js';
+export * from './api/controllers/bearer-token.extractor.js';
 export * from './api/docs/identity.openapi.js';
 export * from './api/dtos/register-user.schema.js';
 export * from './api/middlewares/auth.middleware.js';

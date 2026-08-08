@@ -44,8 +44,8 @@ identityOpenApiRegistry.registerPath({
           schema: envelopeSchema.extend({
             data: z.object({
               user: z.object({
-                id: z.string().uuid().openapi({ example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' }),
-                email: z.string().email().openapi({ example: 'john.doe@example.com' }),
+                id: z.uuid().openapi({ example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' }),
+                email: z.email().openapi({ example: 'john.doe@example.com' }),
                 fullName: z.string().openapi({ example: 'John Doe' }),
               }),
               tokens: z.object({
