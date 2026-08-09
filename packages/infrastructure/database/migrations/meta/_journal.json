@@ -29,6 +29,13 @@
       "when": 1785741335354,
       "tag": "0003_complete_database_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786305995088,
+      "tag": "0004_standardize_business_rbac_schemas",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ export * from './payment/index.js';
 export * from './RBAC/index.js';
 export * from './review/index.js';
 export * from './service/index.js';
+export * from './shared/index.js';
 export * from './staff/index.js';
 
 // Later you can add a new module by creating its own folder barrel and exporting it here:
