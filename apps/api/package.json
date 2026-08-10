@@ -26,9 +26,11 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@salon/business": "workspace:*",
     "@salon/config": "workspace:*",
     "@salon/database": "workspace:*",
     "@salon/identity": "workspace:*",
+    "@salon/rbac": "workspace:*",
     "@salon/logger": "workspace:*",
     "@salon/shared": "workspace:*",
     "@salon/validation": "workspace:*",

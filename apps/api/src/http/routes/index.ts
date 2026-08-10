@@ -1,6 +1,8 @@
+import { createBusinessModule } from '@salon/business';
 import { config } from '@salon/config';
 import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
+import { createRbacModule } from '@salon/rbac';
 import type { Express } from 'express';
 import { registerHealthRoutes } from './health.route.js';
 
@@ -13,8 +15,21 @@ export function initializeModules(app: Express): void {
     jwtSecret: config.secret.jwt, // Driven strictly by @salon/config
   });
 
-  // 2. Mount Module Routers onto API Pipeline
-  app.use('/api/v1/auth', identityModule.authRouter);
+  // 2. Initialize Business Module
+  const businessModule = createBusinessModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+  });
 
-  // (Future modules like Business, Staff, Appointments will be mounted here in the exact same manner)
+  // 3. Initialize RBAC Module
+  const rbacModule = createRbacModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+  });
+
+  // 4. Mount Module Routers onto API Pipeline
+  app.use('/api/v1/auth', identityModule.authRouter);
+  app.use('/api/v1/businesses', businessModule.businessRouter);
+  app.use('/api/v1/businesses', rbacModule.rbacRouter);
 }
