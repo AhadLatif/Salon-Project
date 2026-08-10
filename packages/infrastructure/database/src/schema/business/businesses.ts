@@ -1,4 +1,6 @@
-import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { check, index, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { generateId, helperTimeStamp } from '../shared/index.js';
 
 export const businessStatusEnum = pgEnum('business_status', [
   'pending',
@@ -10,7 +12,9 @@ export const businessStatusEnum = pgEnum('business_status', [
 export const businesses = pgTable(
   'businesses',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => generateId()),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     description: text('description'),
@@ -19,11 +23,12 @@ export const businesses = pgTable(
     status: businessStatusEnum('status').notNull().default('pending'),
     socialLinks: jsonb('social_links'),
     verifiedAt: timestamp('verified_at', { withTimezone: true, mode: 'date' }),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    ...helperTimeStamp,
   },
-  (table) => [index('idx_businesses_status').on(table.status)],
+  (table) => [
+    index('idx_businesses_status').on(table.status),
+    check('chk_businesses_slug', sql`${table.slug} ~ '^[a-z0-9-]+$'`),
+    check('chk_businesses_name', sql`length(trim(${table.name})) > 0`),
+    check('chk_businesses_phone_e164', sql`${table.phoneNumber} ~ '^\\+[1-9][0-9]{1,14}$'`),
+  ],
 );

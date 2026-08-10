@@ -20,7 +20,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:drop": "drizzle-kit drop"
+    "db:drop": "drizzle-kit drop",
+    "seed:permissions": "NODE_ENV=development tsx --env-file=../../../.env src/seed/seed-permissions.ts"
   },
   "devDependencies": {
     "@salon/typescript-config": "workspace:*",
@@ -30,6 +31,7 @@
   "dependencies": {
     "@salon/config": "workspace:*",
     "@salon/logger": "workspace:*",
+    "@salon/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.22.0",
     "uuid": "^14.0.1"

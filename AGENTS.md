@@ -195,3 +195,7 @@ pnpm --filter @salon/api dev          # run the API dev server
 - Tests live in `apps/api/tests/` and `packages/testing/`.
 - Write a test for each bug fix that demonstrates the bug before the fix and passes after.
 - Run `pnpm check` before declaring a task complete.
+
+if there are bugs you encountered while solving, creating and implementing anything opr the bug I gave you to fix , you make sure you create bug report file inside the docs folder and regarding the format of file follow this BUGS_REPORT.md file already inside the docs folder 
+
+make sure you write data and time and task at the top of each report I gave you, dont waste soo much token on it, bug report should follow the format and explain things vivdly 

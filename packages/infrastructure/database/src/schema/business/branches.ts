@@ -1,14 +1,16 @@
+import { sql } from 'drizzle-orm';
 import {
   char,
+  check,
   index,
   numeric,
   pgEnum,
   pgTable,
   text,
-  timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { generateId, helperTimeStamp } from '../shared/index.js';
 import { businesses } from './businesses.js'; // Adjust path as needed
 
 export const branchStatusEnum = pgEnum('branch_status', ['active', 'inactive', 'archived']);
@@ -16,7 +18,9 @@ export const branchStatusEnum = pgEnum('branch_status', ['active', 'inactive', '
 export const branches = pgTable(
   'branches',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => generateId()),
     businessId: uuid('business_id')
       .notNull()
       .references(() => businesses.id, { onDelete: 'restrict' }),
@@ -34,17 +38,13 @@ export const branches = pgTable(
     latitude: numeric('latitude', { precision: 9, scale: 6 }),
     longitude: numeric('longitude', { precision: 9, scale: 6 }),
     status: branchStatusEnum('status').notNull().default('active'),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    ...helperTimeStamp,
   },
   (table) => [
     index('idx_branches_business').on(table.businessId),
     index('idx_branches_status').on(table.status),
     index('idx_branches_city').on(table.city),
     unique('uq_branches_tenant').on(table.businessId, table.id),
-    // ❌ REMOVED: unique('uq_branches_business_name').on(table.businessId, table.name),
+    check('chk_branches_name', sql`length(trim(${table.name})) > 0`),
   ],
 );
