@@ -1,5 +1,7 @@
 import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
+import { businessOpenApiRegistry } from '@salon/business';
 import { identityOpenApiRegistry } from '@salon/identity';
+import { rbacOpenApiRegistry } from '@salon/rbac';
 import { apiReference } from '@scalar/express-api-reference';
 import { Router } from 'express';
 
@@ -9,7 +11,8 @@ export function createDocsRouter(): Router {
   // 1. Combine all module OpenAPI registries
   const generator = new OpenApiGeneratorV31([
     ...identityOpenApiRegistry.definitions,
-    // Add future module registries here (e.g., ...businessOpenApiRegistry.definitions)
+    ...businessOpenApiRegistry.definitions,
+    ...rbacOpenApiRegistry.definitions,
   ]);
 
   // 2. Build the unified OpenAPI Specification document
