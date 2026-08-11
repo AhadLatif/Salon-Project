@@ -11,6 +11,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "test": "turbo test",
+    "test:watch": "vitest",
     "typecheck": "turbo typecheck",
     "format": "biome check --write .",
     "clean": "turbo run clean",
@@ -31,6 +32,7 @@
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.23.1",
     "turbo": "^2.10.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^3.0.5"
   }
 }

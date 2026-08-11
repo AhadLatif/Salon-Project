@@ -4,6 +4,7 @@ import * as schema from './schema/index.js';
 
 // 1. Wrap the pool in Drizzle ORM
 export const db = drizzle(pool, { schema });
+export type Database = typeof db;
 
 // 3. Export the client utilities for graceful shutdown
 export { closePool, pool } from './client.js';
