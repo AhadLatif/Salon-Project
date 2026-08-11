@@ -1,3 +1,4 @@
+export * from './config/vitest.config.js';
 export * from './factories/business.factory.js';
 export * from './factories/role.factory.js';
 export * from './factories/user.factory.js';

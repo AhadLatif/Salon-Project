@@ -3,17 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/vitest.config.d.ts",
+      "default": "./dist/config/vitest.config.js"
     }
   },
-
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

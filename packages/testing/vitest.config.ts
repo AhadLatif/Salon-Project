@@ -1,17 +1,3 @@
-import { defineConfig } from 'vitest/config';
+import { createVitestConfig } from './src/config/vitest.config.js';
 
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
-    testTimeout: 10000,
-    env: {
-      NODE_ENV: 'test',
-      JWT_SECRET: process.env.JWT_SECRET || 'super_secret_password_123abcdABC',
-      DATABASE_URL:
-        process.env.TEST_DATABASE_URL ||
-        'postgres://salon_admin:super_secret_password_123@127.0.0.1:5432/salon_test',
-    },
-  },
-});
+export default createVitestConfig();
