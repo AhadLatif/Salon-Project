@@ -1,4 +1,4 @@
-import { ValidationError } from '@salon/shared';
+import { ConflictError, ValidationError } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { CreateCustomRoleUseCase } from '../../application/use-cases/create-custom-role.use-case.js';
 import type { GetBusinessRolesUseCase } from '../../application/use-cases/get-business-roles.use-case.js';
@@ -6,6 +6,19 @@ import type { GetPermissionsCatalogUseCase } from '../../application/use-cases/g
 import type { UpdateRolePermissionsUseCase } from '../../application/use-cases/update-role-permissions.use-case.js';
 import { createRoleSchema } from '../dtos/create-role.schema.js';
 import { updateRolePermissionsSchema } from '../dtos/update-role-permissions.schema.js';
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      tenant?: {
+        businessId: string;
+        memberId: string;
+        roleId: string;
+      };
+    }
+  }
+}
 
 export class RbacController {
   constructor(
@@ -35,12 +48,11 @@ export class RbacController {
 
   getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const idParam = req.params.id;
-      const businessId = Array.isArray(idParam) ? idParam[0] : idParam;
+      const businessId = req.tenant?.businessId;
 
       if (!businessId) {
-        throw new ValidationError('Missing business ID parameter', {
-          id: 'Business ID is required',
+        throw new ValidationError('Missing tenant businessId.', {
+          'x-business-id': 'Tenant context is required.',
         });
       }
 
@@ -62,12 +74,11 @@ export class RbacController {
 
   createRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const idParam = req.params.id;
-      const businessId = Array.isArray(idParam) ? idParam[0] : idParam;
+      const businessId = req.tenant?.businessId;
 
       if (!businessId) {
-        throw new ValidationError('Missing business ID parameter', {
-          id: 'Business ID is required',
+        throw new ValidationError('Missing tenant businessId.', {
+          'x-business-id': 'Tenant context is required.',
         });
       }
 
@@ -99,6 +110,14 @@ export class RbacController {
         meta: {},
       });
     } catch (error) {
+      const err = error as NodeJS.ErrnoException & {
+        cause?: { code?: string; constraint?: string };
+      };
+      const code = err.cause?.code ?? err.code;
+      const constraint = err.cause?.constraint;
+      if (code === '23505' || constraint === 'uq_business_roles_name') {
+        return next(new ConflictError('Role name already exists for this business.'));
+      }
       next(error);
     }
   };
@@ -109,14 +128,19 @@ export class RbacController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const idParam = req.params.id;
+      const businessId = req.tenant?.businessId;
       const roleIdParam = req.params.roleId;
-      const businessId = Array.isArray(idParam) ? idParam[0] : idParam;
       const roleId = Array.isArray(roleIdParam) ? roleIdParam[0] : roleIdParam;
 
-      if (!businessId || !roleId) {
-        throw new ValidationError('Missing parameters', {
-          id: 'Business ID and Role ID are required',
+      if (!businessId) {
+        throw new ValidationError('Missing tenant businessId.', {
+          'x-business-id': 'Tenant context is required.',
+        });
+      }
+
+      if (!roleId) {
+        throw new ValidationError('Missing role ID parameter', {
+          roleId: 'Role ID is required',
         });
       }
 
