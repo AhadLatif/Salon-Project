@@ -1,3 +1,4 @@
+import { createBranchModule } from '@salon/branch';
 import { createBusinessModule } from '@salon/business';
 import { config } from '@salon/config';
 import { db } from '@salon/database';
@@ -28,8 +29,17 @@ export function initializeModules(app: Express): void {
     tenantMiddleware: businessModule.tenantMiddleware,
   });
 
-  // 4. Mount Module Routers onto API Pipeline
+  // 4. Initialize Branch Module
+  const branchModule = createBranchModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+  });
+
+  // 5. Mount Module Routers onto API Pipeline
   app.use('/api/v1/auth', identityModule.authRouter);
   app.use('/api/v1/businesses', businessModule.businessRouter);
   app.use('/api/v1/businesses', rbacModule.rbacRouter);
+  app.use('/api/v1/businesses/:id/branches', branchModule.branchRouter);
 }
