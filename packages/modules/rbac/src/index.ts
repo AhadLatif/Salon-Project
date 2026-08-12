@@ -56,7 +56,7 @@ export function createRbacModule(deps: RbacModuleDependencies): RbacModule {
     updateRolePermissionsUseCase,
   );
 
-  const rbacRouter = Router();
+  const rbacRouter = Router({ mergeParams: true });
 
   // Permission Catalog
   rbacRouter.get('/permissions/catalog', deps.authMiddleware, rbacController.getPermissions);

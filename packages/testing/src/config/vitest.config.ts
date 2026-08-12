@@ -24,6 +24,7 @@ export function createVitestConfig(options: VitestConfigOptions = {}) {
     test: {
       globals: true,
       environment: 'node',
+      fileParallelism: false,
       include: options.include || ['tests/**/*.test.ts', 'src/**/*.test.ts'],
       testTimeout: options.testTimeout || 10000,
       env: {

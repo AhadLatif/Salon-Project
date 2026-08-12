@@ -31,6 +31,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "@salon/branch": "workspace:*",
     "@salon/business": "workspace:*",
     "@salon/config": "workspace:*",
     "@salon/database": "workspace:*",
