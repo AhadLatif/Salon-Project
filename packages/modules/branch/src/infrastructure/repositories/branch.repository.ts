@@ -160,7 +160,11 @@ export class BranchRepository implements IBranchRepository {
     return await this.database.transaction(async (tx) => {
       // 1. Fetch existing branch and hours
       const existingBranch = await tx.query.branches.findFirst({
-        where: and(eq(branches.id, branchId), eq(branches.businessId, businessId)),
+        where: and(
+          eq(branches.id, branchId),
+          eq(branches.businessId, businessId),
+          ne(branches.status, 'archived'),
+        ),
       });
 
       if (!existingBranch) return null;
@@ -206,7 +210,13 @@ export class BranchRepository implements IBranchRepository {
       const [branch] = await tx
         .select()
         .from(branches)
-        .where(and(eq(branches.id, branchId), eq(branches.businessId, businessId)))
+        .where(
+          and(
+            eq(branches.id, branchId),
+            eq(branches.businessId, businessId),
+            ne(branches.status, 'archived'),
+          ),
+        )
         .for('update');
 
       if (!branch) return null;

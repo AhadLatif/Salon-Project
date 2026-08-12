@@ -101,12 +101,12 @@ export class BranchEntity {
     if (!this.name || this.name.trim().length === 0) {
       throw new ValidationError('Branch name cannot be empty.', { name: 'Cannot be empty' });
     }
-    if (this.countryCode.length !== 2) {
+    if (!/^[A-Z]{2}$/i.test(this.countryCode)) {
       throw new ValidationError('Country code must be exactly 2 characters (ISO 3166-1 alpha-2).', {
         countryCode: 'Invalid format',
       });
     }
-    if (this.currency.length !== 3) {
+    if (!/^[A-Z]{3}$/i.test(this.currency)) {
       throw new ValidationError('Currency code must be exactly 3 characters (ISO 4217).', {
         currency: 'Invalid format',
       });
@@ -136,6 +136,8 @@ export class BranchEntity {
       const seconds = parts[2] ?? 0;
       return hours * 3600 + minutes * 60 + seconds;
     };
+
+    const shiftsByDay: Record<number, { open: number; close: number }[]> = {};
 
     for (const hours of this.openingHours) {
       if (hours.dayOfWeek < 1 || hours.dayOfWeek > 7) {
@@ -173,6 +175,30 @@ export class BranchEntity {
             `Day ${hours.dayOfWeek} opening time (${hours.opensAt}) must be before closing time (${hours.closesAt}).`,
             { opensAt: 'Must be before closesAt' },
           );
+        }
+
+        if (!shiftsByDay[hours.dayOfWeek]) {
+          shiftsByDay[hours.dayOfWeek] = [];
+        }
+        const dayArray = shiftsByDay[hours.dayOfWeek] ?? [];
+        shiftsByDay[hours.dayOfWeek] = dayArray;
+        dayArray.push({
+          open: toSeconds(hours.opensAt),
+          close: toSeconds(hours.closesAt),
+        });
+      }
+    }
+
+    // Validate overlaps
+    for (const [dayStr, dayShifts] of Object.entries(shiftsByDay)) {
+      dayShifts.sort((a, b) => a.open - b.open);
+      for (let i = 0; i < dayShifts.length - 1; i++) {
+        const currentShift = dayShifts[i];
+        const nextShift = dayShifts[i + 1];
+        if (currentShift && nextShift && currentShift.close > nextShift.open) {
+          throw new ValidationError(`Day ${dayStr} has overlapping shifts.`, {
+            openingHours: 'Overlapping shifts on the same day are not allowed',
+          });
         }
       }
     }

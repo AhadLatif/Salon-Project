@@ -6,6 +6,12 @@ import { updateBranchHoursSchema } from '../dtos/update-branch-hours.schema.js';
 
 export const branchOpenApiRegistry = new OpenAPIRegistry();
 
+branchOpenApiRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+});
+
 const errorDetailsSchema = z.record(z.string(), z.string());
 const errorSchema = z.object({
   code: z.string().openapi({ example: 'VALIDATION_ERROR' }),
@@ -61,6 +67,7 @@ branchOpenApiRegistry.registerPath({
       id: z.string().uuid().openapi({ example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' }),
     }),
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     200: {
       description: 'Branches retrieved successfully',
@@ -93,6 +100,7 @@ branchOpenApiRegistry.registerPath({
       branchId: z.string().uuid(),
     }),
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     200: {
       description: 'Branch retrieved successfully',
@@ -128,6 +136,7 @@ branchOpenApiRegistry.registerPath({
     params: z.object({ id: z.string().uuid() }),
     body: { content: { 'application/json': { schema: createBranchSchema } } },
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     201: {
       description: 'Branch created successfully',
@@ -162,6 +171,7 @@ branchOpenApiRegistry.registerPath({
     params: z.object({ id: z.string().uuid(), branchId: z.string().uuid() }),
     body: { content: { 'application/json': { schema: updateBranchSchema } } },
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     200: {
       description: 'Branch updated successfully',
@@ -170,6 +180,10 @@ branchOpenApiRegistry.registerPath({
           schema: successEnvelopeSchema(z.object({ branch: branchResponseSchema })),
         },
       },
+    },
+    400: {
+      description: 'Validation Error',
+      content: { 'application/json': { schema: failureEnvelopeSchema } },
     },
     401: {
       description: 'Unauthorized',
@@ -197,6 +211,7 @@ branchOpenApiRegistry.registerPath({
     params: z.object({ id: z.string().uuid(), branchId: z.string().uuid() }),
     body: { content: { 'application/json': { schema: updateBranchHoursSchema } } },
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     200: {
       description: 'Hours updated successfully',
@@ -205,6 +220,10 @@ branchOpenApiRegistry.registerPath({
           schema: successEnvelopeSchema(z.object({ branch: branchResponseSchema })),
         },
       },
+    },
+    400: {
+      description: 'Validation Error',
+      content: { 'application/json': { schema: failureEnvelopeSchema } },
     },
     401: {
       description: 'Unauthorized',
@@ -230,6 +249,7 @@ branchOpenApiRegistry.registerPath({
   request: {
     params: z.object({ id: z.string().uuid(), branchId: z.string().uuid() }),
   },
+  security: [{ bearerAuth: [] }],
   responses: {
     204: {
       description: 'Branch deleted successfully',

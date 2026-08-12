@@ -6,16 +6,24 @@ export const updateBranchSchema = z
     phoneNumber: z.string().trim().max(50).nullable().optional(),
     email: z.email().trim().max(255).nullable().optional(),
     timezone: z.string().trim().max(100).optional(),
-    currency: z.string().trim().length(3).optional(),
+    currency: z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{3}$/i, 'Currency must be a 3-letter ISO code')
+      .optional(),
     addressLine1: z.string().trim().min(1).max(255).optional(),
     addressLine2: z.string().trim().max(255).nullable().optional(),
     city: z.string().trim().min(1).max(100).optional(),
     state: z.string().trim().max(100).nullable().optional(),
     postalCode: z.string().trim().max(20).nullable().optional(),
-    countryCode: z.string().trim().length(2).optional(),
+    countryCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{2}$/i, 'Country code must be a 2-letter ISO code')
+      .optional(),
     latitude: z
       .string()
-      .regex(/^-?\d{1,2}\.\d+$/)
+      .regex(/^-?\d{1,2}(\.\d+)?$/)
       .refine(
         (val) => {
           const num = parseFloat(val);
@@ -27,7 +35,7 @@ export const updateBranchSchema = z
       .optional(),
     longitude: z
       .string()
-      .regex(/^-?\d{1,3}\.\d+$/)
+      .regex(/^-?\d{1,3}(\.\d+)?$/)
       .refine(
         (val) => {
           const num = parseFloat(val);

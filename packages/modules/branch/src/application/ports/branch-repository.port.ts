@@ -76,7 +76,8 @@ export interface IBranchRepository {
   ): Promise<BranchEntity | null>;
 
   /**
-   * Deletes a branch entirely.
+   * Archives a branch (soft delete) by setting its status to 'archived'.
+   * Archived branches are excluded from findById and findAllByBusinessId.
    */
   delete(businessId: string, branchId: string): Promise<boolean>;
 }

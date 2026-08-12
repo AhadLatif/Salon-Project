@@ -1,4 +1,5 @@
-import { ValidationError } from '@salon/shared';
+import { ForbiddenError, ValidationError } from '@salon/shared';
+import { z } from '@salon/validation';
 import type { Request, Response } from 'express';
 import type { CreateBranchUseCase } from '../../application/use-cases/create-branch.use-case.js';
 import type { DeleteBranchUseCase } from '../../application/use-cases/delete-branch.use-case.js';
@@ -9,6 +10,43 @@ import type { UpdateBranchUseCase } from '../../application/use-cases/update-bra
 import { createBranchSchema } from '../dtos/create-branch.schema.js';
 import { updateBranchSchema } from '../dtos/update-branch.schema.js';
 import { updateBranchHoursSchema } from '../dtos/update-branch-hours.schema.js';
+
+const uuidSchema = z.string().uuid();
+
+function parseUuidParam(value: string, paramName: string): string {
+  const result = uuidSchema.safeParse(value);
+  if (!result.success) {
+    throw new ValidationError(`Invalid ${paramName} format`, {
+      [paramName]: 'Must be a valid UUID.',
+    });
+  }
+  return result.data;
+}
+
+function validateTenantConsistency(req: Request): string {
+  const businessIdFromTenant = req.tenant?.businessId;
+  if (!businessIdFromTenant) {
+    throw new ValidationError('Missing tenant businessId.', {
+      'x-business-id': 'Tenant context is required.',
+    });
+  }
+
+  const businessIdFromPath = req.params.id;
+  if (businessIdFromPath && businessIdFromPath !== businessIdFromTenant) {
+    throw new ForbiddenError('Tenant context does not match the requested resource path.');
+  }
+
+  return businessIdFromTenant;
+}
+
+function formatZodErrors(issues: z.ZodIssue[]): Record<string, string> {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of issues) {
+    const fieldName = issue.path.join('.') || '_root';
+    fieldErrors[fieldName] = issue.message;
+  }
+  return fieldErrors;
+}
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -34,13 +72,7 @@ export class BranchController {
   ) {}
 
   public getBranches = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
+    const businessId = validateTenantConsistency(req);
 
     const branches = await this.getBusinessBranchesUseCase.execute(businessId);
 
@@ -52,15 +84,8 @@ export class BranchController {
   };
 
   public getBranchById = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
-
-    const branchId = req.params.branchId as string;
+    const businessId = validateTenantConsistency(req);
+    const branchId = parseUuidParam(req.params.branchId as string, 'branchId');
 
     const branch = await this.getBranchByIdUseCase.execute(businessId, branchId);
 
@@ -72,23 +97,12 @@ export class BranchController {
   };
 
   public createBranch = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
+    const businessId = validateTenantConsistency(req);
 
     // Validate request body
     const parseResult = createBranchSchema.safeParse(req.body);
     if (!parseResult.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parseResult.error.issues) {
-        const fieldName = issue.path.join('.');
-        if (fieldName) fieldErrors[fieldName] = issue.message;
-      }
-      throw new ValidationError('Invalid branch data', fieldErrors);
+      throw new ValidationError('Invalid branch data', formatZodErrors(parseResult.error.issues));
     }
     const data = parseResult.data;
 
@@ -110,24 +124,15 @@ export class BranchController {
   };
 
   public updateBranch = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
-
-    const branchId = req.params.branchId as string;
+    const businessId = validateTenantConsistency(req);
+    const branchId = parseUuidParam(req.params.branchId as string, 'branchId');
 
     const parseResult = updateBranchSchema.safeParse(req.body);
     if (!parseResult.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parseResult.error.issues) {
-        const fieldName = issue.path.join('.');
-        if (fieldName) fieldErrors[fieldName] = issue.message;
-      }
-      throw new ValidationError('Invalid branch update data', fieldErrors);
+      throw new ValidationError(
+        'Invalid branch update data',
+        formatZodErrors(parseResult.error.issues),
+      );
     }
     const data = parseResult.data;
 
@@ -141,24 +146,15 @@ export class BranchController {
   };
 
   public updateBranchHours = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
-
-    const branchId = req.params.branchId as string;
+    const businessId = validateTenantConsistency(req);
+    const branchId = parseUuidParam(req.params.branchId as string, 'branchId');
 
     const parseResult = updateBranchHoursSchema.safeParse(req.body);
     if (!parseResult.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parseResult.error.issues) {
-        const fieldName = issue.path.join('.');
-        if (fieldName) fieldErrors[fieldName] = issue.message;
-      }
-      throw new ValidationError('Invalid branch hours data', fieldErrors);
+      throw new ValidationError(
+        'Invalid branch hours data',
+        formatZodErrors(parseResult.error.issues),
+      );
     }
     const data = parseResult.data;
 
@@ -179,15 +175,8 @@ export class BranchController {
   };
 
   public deleteBranch = async (req: Request, res: Response): Promise<void> => {
-    const businessId = req.tenant?.businessId;
-
-    if (!businessId) {
-      throw new ValidationError('Missing tenant businessId.', {
-        'x-business-id': 'Tenant context is required.',
-      });
-    }
-
-    const branchId = req.params.branchId as string;
+    const businessId = validateTenantConsistency(req);
+    const branchId = parseUuidParam(req.params.branchId as string, 'branchId');
 
     await this.deleteBranchUseCase.execute(businessId, branchId);
 

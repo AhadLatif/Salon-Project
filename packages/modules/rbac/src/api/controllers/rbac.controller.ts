@@ -1,4 +1,4 @@
-import { ConflictError, ValidationError } from '@salon/shared';
+import { ConflictError, ForbiddenError, ValidationError } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { CreateCustomRoleUseCase } from '../../application/use-cases/create-custom-role.use-case.js';
 import type { GetBusinessRolesUseCase } from '../../application/use-cases/get-business-roles.use-case.js';
@@ -18,6 +18,22 @@ declare global {
       };
     }
   }
+}
+
+function validateTenantConsistency(req: Request): string {
+  const businessIdFromTenant = req.tenant?.businessId;
+  if (!businessIdFromTenant) {
+    throw new ValidationError('Missing tenant businessId.', {
+      'x-business-id': 'Tenant context is required.',
+    });
+  }
+
+  const businessIdFromPath = req.params.id;
+  if (businessIdFromPath && businessIdFromPath !== businessIdFromTenant) {
+    throw new ForbiddenError('Tenant context does not match the requested resource path.');
+  }
+
+  return businessIdFromTenant;
 }
 
 export class RbacController {
@@ -48,13 +64,7 @@ export class RbacController {
 
   getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessId = req.tenant?.businessId;
-
-      if (!businessId) {
-        throw new ValidationError('Missing tenant businessId.', {
-          'x-business-id': 'Tenant context is required.',
-        });
-      }
+      const businessId = validateTenantConsistency(req);
 
       const roles = await this.getBusinessRolesUseCase.execute(businessId);
 
@@ -74,13 +84,7 @@ export class RbacController {
 
   createRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessId = req.tenant?.businessId;
-
-      if (!businessId) {
-        throw new ValidationError('Missing tenant businessId.', {
-          'x-business-id': 'Tenant context is required.',
-        });
-      }
+      const businessId = validateTenantConsistency(req);
 
       const parseResult = createRoleSchema.safeParse(req.body);
 
@@ -114,8 +118,8 @@ export class RbacController {
         cause?: { code?: string; constraint?: string };
       };
       const code = err.cause?.code ?? err.code;
-      const constraint = err.cause?.constraint;
-      if (code === '23505' || constraint === 'uq_business_roles_name') {
+      const constraint = err.cause?.constraint ?? (err as any).constraint;
+      if (code === '23505' && constraint === 'uq_business_roles_name') {
         return next(new ConflictError('Role name already exists for this business.'));
       }
       next(error);
@@ -128,15 +132,9 @@ export class RbacController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const businessId = req.tenant?.businessId;
+      const businessId = validateTenantConsistency(req);
       const roleIdParam = req.params.roleId;
       const roleId = Array.isArray(roleIdParam) ? roleIdParam[0] : roleIdParam;
-
-      if (!businessId) {
-        throw new ValidationError('Missing tenant businessId.', {
-          'x-business-id': 'Tenant context is required.',
-        });
-      }
 
       if (!roleId) {
         throw new ValidationError('Missing role ID parameter', {
