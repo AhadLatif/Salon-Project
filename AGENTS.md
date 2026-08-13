@@ -2,6 +2,32 @@
 
 This file gives AI agents (Cline, Codex, Copilot, etc.) the ground truth about this project. Read it before making changes. It prevents agents from rebuilding what exists or violating the architecture.
 
+
+
+## 0. How to use this repository's agent system
+
+This repository separates four kinds of guidance:
+
+- `AGENTS.md` — rules that are broadly applicable to every task.
+- `.agents/skills/` — specialized procedures used when a task matches the skill.
+- `.agents/workflows/` — explicit multi-step procedures for major activities such as building, testing, and documenting a module.
+- `docs/` — project knowledge, research, decisions, module flows, and historical bug records.
+
+The agent should not assume that every Markdown file in `docs/` is a skill. Skills live under `.agents/skills/<skill-name>/SKILL.md`.
+
+When a workflow or skill says to inspect project documentation, read the relevant files from `docs/` before making decisions.
+
+### Instruction precedence
+
+When instructions appear to conflict:
+1. Safety, security, and platform/tool constraints win.
+2. Explicit user instructions for the current task win.
+3. This `AGENTS.md` applies repository-wide.
+4. A matching workflow controls the sequence of that activity.
+5. A matching skill controls the specialized procedure.
+6. `docs/` provides project-specific knowledge and historical context.
+
+Do not silently ignore a conflict. Explain the conflict and use the highest-priority applicable rule.
 ---
 
 ## 1. Project Overview
@@ -67,7 +93,6 @@ packages/
 
 ## 3. Module Architecture Pattern
 
-Every module follows the same **Clean Architecture** structure:
 
 ```
 packages/modules/<name>/src/
@@ -89,7 +114,20 @@ packages/modules/<name>/src/
   but basically we are using pragmatic pattern so would not every module follow this some follow hexagonal and some clean and some layers, thats why you need to ask before following and applying any architecture to the module
 ```
 
+The project is pragmatic. Existing modules may use Clean Architecture, Hexagonal Architecture, layered architecture, or a pragmatic combination.
+
+Do **not** assume that every new module must use the same architecture.
+
+Before implementing a module:
+1. Inspect nearby/related modules.
+2. Read relevant architecture documentation.
+3. Identify the simplest architecture that fits the module.
+4. Preserve established conventions unless there is a concrete reason to change them.
+5. If the architectural choice materially affects the design and is genuinely ambiguous, stop and ask the user before committing to the approach.
+
 ### The 7-Step Module Build Checklist
+
+The old 7-step module checklist is retained as a useful default starting point, not a blind law:
 
 When building a new module, follow this exact order:
 
@@ -101,9 +139,77 @@ When building a new module, follow this exact order:
 6. **Add the OpenAPI registry** in `api/docs/`
 7. **Wire it** in the module's `index.ts` (factory) + mount in `apps/api/src/http/routes/index.ts`
 
----
+## 4. Execution Workflow & Phase Lifecycle
 
-## 4. Architectural Invariants (DO NOT VIOLATE)
+To maintain high code quality, security, and learning outcomes, **every module MUST be built strictly phase-by-phase**. Never rush or combine all phases at once.
+
+
+## 4. Module Lifecycle
+
+Every module is built deliberately and one logical module at a time.
+
+### Phase 1 — Understand and Plan
+- Inspect current code, tests, configuration, and relevant docs.
+- Determine dependencies and the logical module order.
+- Check relevant official/current external documentation, especially Fresha-related behavior.
+- Identify security and business/operational edge cases.
+- Decide what is deliberately out of scope.
+
+### Phase 2 — Core Implementation
+- Use the module's chosen architecture.
+- Keep business logic in the appropriate application/domain boundary.
+- Do not add speculative features or unnecessary abstractions.
+- Follow the 7-step checklist (Ports -> Repositories -> Use Cases -> Controllers -> DTOs -> OpenAPI -> Module Wiring & API Mounting).
+- Implement real-world Fresha-style business logic and security edge cases (tenant isolation, price precision, duration checks, IDOR protection).
+- **Comments Standard**: Add vivid, clear, and domain-relevant code comments explaining *why* key architectural decisions, validation boundaries, and security guards exist. Avoid generic or low-quality AI fluff.
+
+
+### Phase 3 — Code Review and Issue Resolution
+- Review the implementation for logic, data, security, business, concurrency, and integration problems.
+- Resolve meaningful issues before test completion.
+
+### Phase 4 — Testing and Integration Verification
+- Use the `testing` skill.
+- Inspect the implementation before writing tests.
+- Add the smallest useful set of unit/integration/API tests.
+- Cover important success, failure, security, business, retry/duplicate, and boundary cases.
+
+### Phase 5 — Test Fixes and Refinement
+- Run `pnpm check` and `pnpm test` as appropriate.
+- Resolve failures and meaningful bugs revealed by tests.
+- Re-review security and business edge cases after fixes.
+
+### Phase 6 — Documentation
+- Use the `module-documentation` skill.
+- Create/update module flow documentation.
+- Update `docs/BUGS_REPORT.md` using the established format.
+- Record meaningful mistakes and lessons, not trivial edits.
+
+
+
+### Permission Gate — Documentation
+After implementation, review, and testing are complete, **STOP and ask the user for explicit permission before creating/updating module-completion documentation.**
+
+### Permission Gate — Next Module
+After documentation is complete, **STOP and ask the user for explicit permission before starting the next module.**
+
+### Permission Gate — Git
+**Never commit without explicit user permission.**
+Do not infer commit permission from "continue", "looks good", or similar wording unless the user explicitly authorizes the commit.
+- **Git Commits**: Never commit code without explicit user permission. When permitted, make distinct logical commits (e.g., `feat(<module>): core implementation`, `test(<module>): unit and api integration tests`, `docs(<module>): flow docs and bug report`).
+- **Module Boundary**: Do NOT proceed to the next module without explicit permission from the user.
+
+
+When approved, keep meaningful commits separate:
+1. Core implementation
+2. Tests
+3. Documentation
+
+Do not create empty commits.
+Do not push unless separately authorized.
+
+
+## 5. Architectural Invariants (DO NOT VIOLATE)
 
 These are hard rules. Every agent must follow them.
 
@@ -126,9 +232,10 @@ These are hard rules. Every agent must follow them.
 - **Password comparison** must be constant-time (use a dummy hash for non-existent users to prevent timing attacks).
 - **Token rotation** must be atomic (compare-and-swap on the expected hash).
 
-### Concurrency
-- **State transitions** that must be atomic (e.g., token rotation) MUST use compare-and-swap (conditional WHERE clause + check rows affected).
+### Concurrency & Type Safety
+- **State transitions** that must be atomic (e.g., token rotation, assignment toggles) MUST use compare-and-swap or atomic SQL (`.onConflictDoNothing()`).
 - **Read before write**: all validation/reads happen before any DB write in a use case.
+- **Zero `any` types**: Biome and TypeScript strict mode will fail on `any`. Always use explicit types, `unknown` with type guards, or proper generics.
 
 ### API consistency
 - Every response uses the envelope: `{ success, error, meta }`.
@@ -137,38 +244,59 @@ These are hard rules. Every agent must follow them.
 
 ---
 
-## 5. Phase Roadmap (What's Done, What's Next)
+
+## 6. Fresha and External Documentation
+
+Use the `source-of-truth` skill when a task depends on external product/API behavior.
+
+Do not invent undocumented:
+- endpoints
+- fields
+- states
+- permissions
+- rate limits
+- retry semantics
+- webhook semantics
+- pagination behavior
+- lifecycle rules
+
+Clearly distinguish:
+- documented behavior
+- observed behavior
+- project decisions
+- assumptions pending verification
+
+When current external behavior may have changed, verify it before relying on it.
+
+
+## 6. Phase Roadmap (What's Done, What's Next)
 
 ### ✅ DONE
 - **Infrastructure:** config, database (all schema), logger, shared errors, validation
 - **Identity/Auth:** register, login, refresh, logout, sessions, JWT, bcrypt, OpenAPI registry
-- **API app:** app.ts, health/docs/auth routes, error-handler, not-found, pino-logger, Scalar docs
-- **API Docs:** Scalar UI at `/docs`, OpenAPI JSON at `/docs/openapi.json`
+- **Business module:** tenant creation, business member setup, owner RBAC role
+- **Branch module:** branch lifecycle, opening hours, tenant-isolated operations
+- **Service module:** service catalog, service categories, branch assignment matrix
 
-### 🔜 NEXT (in order)
-1. **Auth middleware** — protect routes with `req.user` (currently being added)
-2. **Business module** — `CreateBusinessUseCase` (creates Business + Owner RBAC role + business_member in one transaction)
-3. **Tenant middleware** — reads `x-business-id`, checks `business_members`, throws `ForbiddenError`
-4. **Branch module** — `CreateBranchUseCase`
-5. **Service module** — `CreateServiceUseCase`
-6. **Staff module** — onboard staff, assign services, set schedules
-7. **RBAC module** — expand roles/permissions beyond Owner (once Staff exist)
-8. **Customer module** — CRM
-9. **Marketplace module** — search salons, professional profiles
-10. **Appointment module** — availability engine, booking (db.transaction)
-11. **Payment module** — Stripe checkout + webhook (idempotency)
-12. **Notification module** — event-driven SMS/email
-13. **Review module** — submit/reply reviews
-14. **Audit module** — audit logging
-15. **Inventory, Analytics, Administration** — deferred (post-MVP)
+### 🔜 NEXT (in logical sequence)
+1. **Staff module** (`@salon/staff`) — onboard staff members, assign services to staff, manage staff working schedules/shifts across branches. *(Prerequisite for appointment scheduling)*
+2. **RBAC module** (`@salon/rbac`) — expand roles/permissions beyond Owner (Stylist, Receptionist, Manager) now that Staff profiles exist.
+3. **Customer module** (`@salon/customer`) — CRM, customer profiles, notes, history.
+4. **Appointment module** (`@salon/appointment`) — availability engine, booking calendar, lock-free/atomic slot booking.
+5. **Marketplace module** (`@salon/marketplace`) — public salon discovery, search by service/location.
+6. **Payment module** (`@salon/payment`) — Stripe checkout, deposits, webhook idempotency.
+7. **Notification module** (`@salon/notification`) — event-driven SMS/email reminders.
+8. **Review module** (`@salon/review`) — ratings & customer feedback.
+9. **Audit module** (`@salon/audit`) — system audit logs.
 
 ### Key ordering principle
-- **RBAC is NOT built first in isolation.** The minimum RBAC (Owner role) is created inside `CreateBusinessUseCase`. Full RBAC expansion happens after Staff exist.
-- **Business must exist before Branch, Staff, Service, Appointment.** Everything B2B hangs off the tenant.
+- **Staff before Appointment:** An appointment requires a physical branch, a service, AND an assigned staff member who is available during that shift.
+- **Staff before full RBAC:** Roles like "Stylist" or "Receptionist" are assigned to staff user profiles.
+- **Business -> Branch -> Service -> Staff -> Appointment:** Real-world domain hierarchy matches Fresha platform architecture.
 
 ---
 
-## 6. Database Schema Organization
+## 7. Database Schema Organization
 
 The DB schema (`packages/infrastructure/database/src/schema/`) is organized by **data relationship** (foreign keys), NOT by module.
 
@@ -177,25 +305,45 @@ The DB schema (`packages/infrastructure/database/src/schema/`) is organized by *
 
 ---
 
-## 7. Commands
+## 8. Commands
 
 ```bash
 pnpm check          # typecheck + biome + depcruise (run before finishing any task)
 pnpm format         # biome check --write (auto-fix formatting)
-pnpm --filter @salon/identity build   # rebuild a package's dist
+pnpm --filter @salon/service build    # rebuild a package's dist
 pnpm --filter @salon/api dev          # run the API dev server
+pnpm test                             # run all tests
 ```
 
-**Important:** When you change a package (e.g., `@salon/identity`), you must rebuild it (`pnpm --filter @salon/identity build`) AND restart the API server. `tsx watch` only watches the API's own source, not dependency packages' dist.
+**Important:** When you change a package (e.g., `@salon/service`), you must rebuild it (`pnpm --filter @salon/service build`) AND restart the API server. `tsx watch` only watches the API's own source, not dependency packages' dist.
 
 ---
 
-## 8. Testing
 
-- Tests live in `apps/api/tests/` and `packages/testing/`.
-- Write a test for each bug fix that demonstrates the bug before the fix and passes after.
-- Run `pnpm check` before declaring a task complete.
 
-if there are bugs you encountered while solving, creating and implementing anything opr the bug I gave you to fix , you make sure you create bug report file inside the docs folder and regarding the format of file follow this BUGS_REPORT.md file already inside the docs folder 
+## 9 . Teaching Rules
 
-make sure you write data and time and task at the top of each report I gave you, dont waste soo much token on it, bug report should follow the format and explain things vivdly 
+The agent acts as a teacher-engineer:
+- Do not blindly agree with the student.
+- If a proposed approach is unsafe, over-engineered, inconsistent with documentation, or poorly sequenced, say so and explain why.
+- Explain important reasoning close to the relevant implementation.
+- Keep comments vivid, specific, and domain-related.
+- Do not write generic "AI-sounding" filler comments.
+- Do not explain every trivial operation.
+- Focus on lessons that transfer to future work.
+
+## 10. Canonical Skill and Workflow Map
+
+Use these specialized procedures when relevant:
+
+- `.agents/skills/module-implementation/SKILL.md`
+- `.agents/skills/testing/SKILL.md`
+- `.agents/skills/security-review/SKILL.md`
+- `.agents/skills/module-documentation/SKILL.md`
+- `.agents/skills/source-of-truth/SKILL.md`
+
+Use these workflows for explicit phase-driven work:
+
+- `.agents/workflows/build-module.md`
+- `.agents/workflows/test-module.md`
+- `.agents/workflows/document-module.md`
