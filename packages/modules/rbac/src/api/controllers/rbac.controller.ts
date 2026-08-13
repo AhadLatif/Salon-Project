@@ -118,7 +118,7 @@ export class RbacController {
         cause?: { code?: string; constraint?: string };
       };
       const code = err.cause?.code ?? err.code;
-      const constraint = err.cause?.constraint ?? (err as any).constraint;
+      const constraint = err.cause?.constraint;
       if (code === '23505' && constraint === 'uq_business_roles_name') {
         return next(new ConflictError('Role name already exists for this business.'));
       }
