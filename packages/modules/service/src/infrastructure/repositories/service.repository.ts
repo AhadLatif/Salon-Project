@@ -39,7 +39,7 @@ export class ServiceRepository implements IServiceRepository {
 
       return this.toDomainEntity(newService);
     } catch (error) {
-      const err = error as any;
+      const err = error as Error & { code?: string; constraint?: string };
       if (err.code === '23505' && err.constraint === 'uq_services_business_name') {
         throw new ConflictError('A service with this name already exists in your business.');
       }
@@ -108,7 +108,7 @@ export class ServiceRepository implements IServiceRepository {
 
       return this.toDomainEntity(updatedService);
     } catch (error) {
-      const err = error as any;
+      const err = error as Error & { code?: string; constraint?: string };
       if (err.code === '23505' && err.constraint === 'uq_services_business_name') {
         throw new ConflictError('A service with this name already exists in your business.');
       }

@@ -36,11 +36,9 @@ export class ServiceCategoryRepository implements IServiceCategoryRepository {
 
       return this.toDomainEntity(newCategory);
     } catch (error) {
-      const err = error as any;
-      const code = err.cause?.code ?? err.code;
-      const constraint = err.cause?.constraint ?? err.constraint;
+      const err = error as Error & { code?: string; constraint?: string };
       // Handle unique constraint violation (uq_service_categories_business_name)
-      if (code === '23505' && constraint === 'uq_service_categories_business_name') {
+      if (err.code === '23505' && err.constraint === 'uq_service_categories_business_name') {
         throw new ConflictError('A category with this name already exists in your business.');
       }
       throw error;
@@ -109,10 +107,8 @@ export class ServiceCategoryRepository implements IServiceCategoryRepository {
 
       return this.toDomainEntity(updatedCategory);
     } catch (error) {
-      const err = error as any;
-      const code = err.cause?.code ?? err.code;
-      const constraint = err.cause?.constraint ?? err.constraint;
-      if (code === '23505' && constraint === 'uq_service_categories_business_name') {
+      const err = error as Error & { code?: string; constraint?: string };
+      if (err.code === '23505' && err.constraint === 'uq_service_categories_business_name') {
         throw new ConflictError('A category with this name already exists in your business.');
       }
       throw error;
