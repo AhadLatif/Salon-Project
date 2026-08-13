@@ -37,6 +37,7 @@
     "@salon/database": "workspace:*",
     "@salon/identity": "workspace:*",
     "@salon/rbac": "workspace:*",
+    "@salon/service": "workspace:*",
     "@salon/logger": "workspace:*",
     "@salon/shared": "workspace:*",
     "@salon/validation": "workspace:*",

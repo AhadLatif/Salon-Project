@@ -3,6 +3,7 @@ import { branchOpenApiRegistry } from '@salon/branch';
 import { businessOpenApiRegistry } from '@salon/business';
 import { identityOpenApiRegistry } from '@salon/identity';
 import { rbacOpenApiRegistry } from '@salon/rbac';
+import { serviceOpenApiRegistry } from '@salon/service';
 import { apiReference } from '@scalar/express-api-reference';
 import { Router } from 'express';
 
@@ -15,6 +16,7 @@ export function createDocsRouter(): Router {
     ...businessOpenApiRegistry.definitions,
     ...rbacOpenApiRegistry.definitions,
     ...branchOpenApiRegistry.definitions,
+    ...serviceOpenApiRegistry.definitions,
   ]);
 
   // 2. Build the unified OpenAPI Specification document

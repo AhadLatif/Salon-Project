@@ -4,7 +4,9 @@ import { config } from '@salon/config';
 import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
 import { createRbacModule } from '@salon/rbac';
+import { createServiceModule } from '@salon/service';
 import type { Express } from 'express';
+import { Router } from 'express';
 import { registerHealthRoutes } from './health.route.js';
 
 export function initializeModules(app: Express): void {
@@ -37,9 +39,22 @@ export function initializeModules(app: Express): void {
     requirePermission: rbacModule.requirePermission,
   });
 
-  // 5. Mount Module Routers onto API Pipeline
-  app.use('/api/v1/auth', identityModule.authRouter);
-  app.use('/api/v1/businesses', businessModule.businessRouter);
-  app.use('/api/v1/businesses', rbacModule.rbacRouter);
-  app.use('/api/v1/businesses/:id/branches', branchModule.branchRouter);
+  // 5. Initialize Service Module
+  const serviceModule = createServiceModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+  });
+
+  // 6. Mount Module Routers onto API Pipeline
+  const v1Router = Router();
+
+  v1Router.use('/auth', identityModule.authRouter);
+  v1Router.use('/businesses', businessModule.businessRouter);
+  v1Router.use('/businesses', rbacModule.rbacRouter);
+  v1Router.use('/businesses/:id/branches', branchModule.branchRouter);
+  v1Router.use('/businesses/:id', serviceModule);
+
+  app.use('/api/v1', v1Router);
 }
