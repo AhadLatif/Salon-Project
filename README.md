@@ -1,65 +1,129 @@
-# Salon Management Platform
+# Salon Platform
 
-A platform for booking salon appointments, managing business operations, and connecting customers with salons through a unified experience.
+A multi-tenant SaaS and B2C marketplace backend for salon management, appointment scheduling, and client discovery. Built with Node.js, Express 5, TypeScript, and PostgreSQL in a modular monorepo.
 
-Customers can discover salons, browse services, choose professionals, and book appointments online. Businesses can manage appointments, customers, staff, services, payments, inventory, and day-to-day operations from a single platform.
+---
 
-This repository contains the backend implementation of the platform. It is being developed as a modular monolith with a strong emphasis on maintainability, scalability, and clear separation of business domains.
+## Overview
 
-## Features
+The platform provides a unified backend powering both business operations and client-facing booking flows:
 
-### Customer Experience
+- **Business Management**: Multi-tenant salon administration, branch configuration, staff management, service catalog, opening hours, and calendar scheduling.
+- **Client Marketplace**: Salon and service discovery, real-time availability checks, online booking, and verified reviews.
+- **Enterprise Core**: Strict tenant isolation, atomic state transitions, stateless JWT + hashed refresh token authentication, and comprehensive auditability.
 
-- Discover salons and services
-- Book and manage appointments
-- Choose preferred professionals
-- Leave reviews and ratings
-- Receive appointment updates and notifications
+---
 
-### Business Management
+## Architecture
 
-- Manage appointments and calendars
-- Manage customers and appointment history
-- Organize staff, branches, and services
-- Process payments and refunds
-- Track products and inventory
-- Configure business settings and policies
-- Monitor business performance
+The project is structured as a **modular monolith** managed via Turborepo and pnpm workspaces:
+
+```text
+salon-project/
+├── apps/
+│   └── api/                  # Express 5 API gateway & HTTP runtime
+├── packages/
+│   ├── infrastructure/       # Foundational packages
+│   │   ├── config/           # Environment configuration & Zod schemas
+│   │   ├── database/         # Drizzle ORM schema, migrations & client
+│   │   ├── events/           # Event bus infrastructure
+│   │   ├── logger/           # Structured logging (Pino)
+│   │   └── validation/       # Shared validation utilities
+│   ├── modules/              # Domain modules
+│   │   ├── identity/         # Authentication, tokens & sessions
+│   │   ├── business/         # Business profiles & ownership
+│   │   ├── branch/           # Locations & operating schedules
+│   │   ├── service/          # Service catalogs & categories
+│   │   ├── staff/            # Staff profiles, rosters & assignments
+│   │   ├── customer/         # Client records & CRM
+│   │   ├── appointment/      # Booking engine & calendar
+│   │   ├── payment/          # Transactions & Stripe integration
+│   │   └── marketplace/      # Public discovery & search
+│   ├── shared/               # Domain errors, results & base abstractions
+│   └── testing/              # Test utilities, mocks & factories
+```
+
+---
 
 ## Tech Stack
 
-- Node.js
-- TypeScript
-- Express
-- PostgreSQL
-- Drizzle ORM
-- Redis
-- BullMQ
-- pnpm Workspace
-- Turborepo
-- Docker
-- Biome
+| Layer | Technology |
+| :--- | :--- |
+| **Runtime & Language** | Node.js (>= 24), TypeScript |
+| **HTTP Framework** | Express 5 |
+| **Database & ORM** | PostgreSQL, Drizzle ORM |
+| **Workspace & Build** | pnpm Workspaces, Turborepo |
+| **Validation & Docs** | Zod, OpenAPI 3.1, Scalar |
+| **Linting & Code Quality** | Biome, Dependency Cruiser |
+| **Testing** | Vitest, Supertest |
+
+---
 
 ## Getting Started
 
-Install dependencies:
+### Prerequisites
 
-```bash
-pnpm install
+- **Node.js**: `v24.16.0` or higher
+- **pnpm**: `v11.5.0` or higher
+- **PostgreSQL**: `v16` or higher
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/salon-project.git
+   cd salon-project
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pnpm install
+   ```
+
+3. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   *Update `.env` with your PostgreSQL database credentials.*
+
+4. **Setup database:**
+   ```bash
+   pnpm --filter @salon/database db:push
+   ```
+
+5. **Start development server:**
+   ```bash
+   pnpm dev
+   ```
+
+The API will be available at `http://localhost:3000`.
+
+---
+
+## Interactive API Documentation
+
+Interactive OpenAPI documentation is served via Scalar UI at:
+
+```
+http://localhost:3000/docs
 ```
 
-Start the development server:
+---
 
-```bash
-pnpm dev
-```
+## Development Scripts
 
-Build the project:
+| Command | Description |
+| :--- | :--- |
+| `pnpm dev` | Start the API server in watch mode |
+| `pnpm build` | Build all packages and applications |
+| `pnpm test` | Run test suites across the monorepo |
+| `pnpm test:watch` | Run tests in interactive watch mode |
+| `pnpm check` | Run typechecking, Biome checks, and dependency rules |
+| `pnpm format` | Auto-format codebase with Biome |
+| `pnpm depcruise` | Verify module boundary and architectural constraints |
 
-```bash
-pnpm build
-```
+---
 
-## Status
+## License
 
-🚧 Active development.
+Private and proprietary. All rights reserved.
