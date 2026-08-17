@@ -1,6 +1,7 @@
 import { ForbiddenError, ValidationError } from '@salon/shared';
 import { z } from '@salon/validation';
 import type { NextFunction, Request, Response } from 'express';
+import type { AddShiftToScheduleUseCase } from '../../application/use-cases/add-shift-to-schedule.use-case.js';
 import type { AssignServiceToStaffUseCase } from '../../application/use-cases/assign-service-to-staff.use-case.js';
 import type { AssignStaffToBranchUseCase } from '../../application/use-cases/assign-staff-to-branch.use-case.js';
 import type { CreateStaffMemberUseCase } from '../../application/use-cases/create-staff-member.use-case.js';
@@ -8,9 +9,11 @@ import type { CreateStaffWorkScheduleUseCase } from '../../application/use-cases
 import type { DeactivateStaffMemberUseCase } from '../../application/use-cases/deactivate-staff-member.use-case.js';
 import type { GetStaffMemberDetailsUseCase } from '../../application/use-cases/get-staff-member-details.use-case.js';
 import type { GetStaffMembersUseCase } from '../../application/use-cases/get-staff-members.use-case.js';
+import type { GetStaffWorkSchedulesUseCase } from '../../application/use-cases/get-staff-work-schedules.use-case.js';
 import type { UnassignServiceFromStaffUseCase } from '../../application/use-cases/unassign-service-from-staff.use-case.js';
 import type { UnassignStaffFromBranchUseCase } from '../../application/use-cases/unassign-staff-from-branch.use-case.js';
 import type { UpdateStaffMemberUseCase } from '../../application/use-cases/update-staff-member.use-case.js';
+import { addShiftToScheduleSchema } from '../dtos/add-shift-to-schedule.schema.js';
 import { assignServiceToStaffSchema } from '../dtos/assign-service-to-staff.schema.js';
 import { assignStaffToBranchSchema } from '../dtos/assign-staff-to-branch.schema.js';
 import { createStaffMemberSchema } from '../dtos/create-staff-member.schema.js';
@@ -37,9 +40,9 @@ function parseUuidParam(value: string, paramName: string): string {
 function validateTenantConsistency(req: Request): string {
   const businessIdFromTenant = req.tenant?.businessId;
   if (!businessIdFromTenant) {
-    throw new ValidationError('Missing tenant businessId.', {
-      'x-business-id': 'Tenant context is required.',
-    });
+    // Invariant: tenantMiddleware populates req.tenant for every staff route.
+    // Reaching here means the middleware chain is misconfigured, so fail as a 500.
+    throw new Error('Tenant context missing after tenant middleware.');
   }
 
   // If there's a businessId in params/query, it must mathematically match the verified tenant.
@@ -85,12 +88,18 @@ export class StaffMemberController {
     private readonly assignServiceToStaffUseCase: AssignServiceToStaffUseCase,
     private readonly unassignServiceFromStaffUseCase: UnassignServiceFromStaffUseCase,
     private readonly createStaffWorkScheduleUseCase: CreateStaffWorkScheduleUseCase,
+    private readonly addShiftToScheduleUseCase: AddShiftToScheduleUseCase,
+    private readonly getStaffWorkSchedulesUseCase: GetStaffWorkSchedulesUseCase,
   ) {}
 
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const businessId = validateTenantConsistency(req);
-      const parseResult = createStaffMemberSchema.safeParse(req.body);
+
+      const parseResult = createStaffMemberSchema.safeParse({
+        ...req.body,
+        businessId,
+      });
 
       if (!parseResult.success) {
         throw new ValidationError(
@@ -99,17 +108,10 @@ export class StaffMemberController {
         );
       }
 
-      // SECURITY: Payload Trust Boundary
-      // The user could maliciously include a different businessId in the JSON payload to try
-      // and insert records into another tenant. We strictly enforce that it matches the token tenant.
-      if (parseResult.data.businessId !== businessId) {
-        throw new ForbiddenError('Tenant context does not match the request payload businessId.');
-      }
-
       const staff = await this.createStaffMemberUseCase.execute(parseResult.data);
       res.status(201).json({
         success: true,
-        data: staff,
+        data: { staff },
         error: null,
         meta: {},
       });
@@ -124,7 +126,7 @@ export class StaffMemberController {
       const staff = await this.getStaffMembersUseCase.execute(businessId);
       res.status(200).json({
         success: true,
-        data: staff,
+        data: { staff },
         error: null,
         meta: {},
       });
@@ -141,7 +143,7 @@ export class StaffMemberController {
       const staff = await this.getStaffMemberDetailsUseCase.execute(businessId, staffMemberId);
       res.status(200).json({
         success: true,
-        data: staff,
+        data: { staff },
         error: null,
         meta: {},
       });
@@ -170,7 +172,7 @@ export class StaffMemberController {
       );
       res.status(200).json({
         success: true,
-        data: staff,
+        data: { staff },
         error: null,
         meta: {},
       });
@@ -215,9 +217,9 @@ export class StaffMemberController {
         parseResult.data.branchId,
         parseResult.data.isPrimary,
       );
-      res.status(200).json({
+      res.status(201).json({
         success: true,
-        data: assignment,
+        data: { assignment },
         error: null,
         meta: {},
       });
@@ -267,9 +269,9 @@ export class StaffMemberController {
           isBookable: parseResult.data.isBookable,
         },
       );
-      res.status(200).json({
+      res.status(201).json({
         success: true,
-        data: assignment,
+        data: { assignment },
         error: null,
         meta: {},
       });
@@ -316,7 +318,51 @@ export class StaffMemberController {
       );
       res.status(201).json({
         success: true,
-        data: schedule,
+        data: { schedule },
+        error: null,
+        meta: {},
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getWorkSchedules(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const businessId = validateTenantConsistency(req);
+      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
+
+      const schedules = await this.getStaffWorkSchedulesUseCase.execute(businessId, staffMemberId);
+      res.status(200).json({
+        success: true,
+        data: { schedules },
+        error: null,
+        meta: {},
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async addShiftToSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const businessId = validateTenantConsistency(req);
+
+      const workScheduleId = parseUuidParam(req.params.workScheduleId as string, 'workScheduleId');
+
+      const parseResult = addShiftToScheduleSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        throw new ValidationError('Invalid shift data', formatZodErrors(parseResult.error.issues));
+      }
+
+      const shift = await this.addShiftToScheduleUseCase.execute(
+        businessId,
+        workScheduleId,
+        parseResult.data,
+      );
+      res.status(201).json({
+        success: true,
+        data: { shift },
         error: null,
         meta: {},
       });

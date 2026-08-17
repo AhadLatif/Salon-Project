@@ -30,6 +30,12 @@ export class AddShiftToScheduleUseCase {
       );
     }
 
+    if (data.startsAt >= data.endsAt) {
+      throw new ValidationError('Shift endsAt must be strictly later than startsAt', {
+        timeWindow: 'startsAt must be earlier than endsAt',
+      });
+    }
+
     return await this.staffRepository.addShiftToSchedule(workScheduleId, data);
   }
 }

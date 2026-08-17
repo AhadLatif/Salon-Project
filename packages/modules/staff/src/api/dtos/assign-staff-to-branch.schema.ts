@@ -1,7 +1,7 @@
 import { z } from '@salon/validation';
 
 export const assignStaffToBranchSchema = z.object({
-  branchId: z.string().uuid(),
+  branchId: z.uuid(),
   isPrimary: z.boolean().optional(),
 });
 

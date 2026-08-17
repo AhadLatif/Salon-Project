@@ -25,7 +25,10 @@ export function createVitestConfig(options: VitestConfigOptions = {}) {
       globals: true,
       environment: 'node',
       fileParallelism: false,
-      include: options.include || ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+      // NOTE: single `*` (not `**`) — tests must live FLAT in `tests/` and `src/`.
+      // Using `**` would let nested folders like `tests/unit/` or `tests/integration/`
+      // silently run, which is the anti-pattern we forbid. Keep it flat.
+      include: options.include || ['tests/*.test.ts', 'src/*.test.ts'],
       testTimeout: options.testTimeout || 10000,
       env: {
         NODE_ENV: 'test',

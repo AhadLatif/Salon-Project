@@ -9,7 +9,7 @@ import {
   staffServices,
   staffWorkSchedules,
 } from '@salon/database';
-import { ConflictError } from '@salon/shared';
+import { ConflictError, ValidationError } from '@salon/shared';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import type {
   CreateStaffMemberData,
@@ -61,11 +61,29 @@ export class StaffRepository implements IStaffRepository {
       }
 
       return this.toDomainEntity(newStaff);
-    } catch (error) {
-      const err = error as { code?: string; constraint?: string };
-      // A business member can only have ONE staff profile per business
-      if (err.code === '23505' && err.constraint === 'uq_staff_business_member') {
-        throw new ConflictError('This business member already has a staff profile.');
+    } catch (error: unknown) {
+      // Drizzle wraps postgres errors in DrizzleQueryError where the real postgres error is in error.cause
+      let dbErr:
+        | { code?: string; constraint?: string; constraint_name?: string; message?: string }
+        | undefined;
+
+      if (typeof error === 'object' && error !== null) {
+        const cause = 'cause' in error ? error.cause : undefined;
+        if (typeof cause === 'object' && cause !== null) {
+          dbErr = cause as typeof dbErr;
+        } else {
+          dbErr = error as typeof dbErr;
+        }
+      }
+
+      if (dbErr) {
+        const constraintName = dbErr.constraint || dbErr.constraint_name || '';
+        if (
+          dbErr.code === '23505' &&
+          (constraintName.includes('business_member') || dbErr.message?.includes('business_member'))
+        ) {
+          throw new ConflictError('This business member already has a staff profile.');
+        }
       }
       throw error;
     }
@@ -198,10 +216,14 @@ export class StaffRepository implements IStaffRepository {
             eq(staffBranchAssignments.isPrimary, true),
             isNull(staffBranchAssignments.unassignedAt),
           ),
-          columns: { id: true },
+          columns: { id: true, branchId: true },
         });
 
         if (currentPrimary) {
+          if (currentPrimary.branchId === branchId) {
+            throw new ConflictError('Staff member is already assigned to this branch.');
+          }
+
           const [updated] = await tx
             .update(staffBranchAssignments)
             .set({ isPrimary: false })
@@ -230,6 +252,32 @@ export class StaffRepository implements IStaffRepository {
 
       if (existing) {
         if (existing.unassignedAt === null) {
+          if (isPrimary && !existing.isPrimary) {
+            const [promoted] = await tx
+              .update(staffBranchAssignments)
+              .set({ isPrimary: true })
+              .where(
+                and(
+                  eq(staffBranchAssignments.id, existing.id),
+                  isNull(staffBranchAssignments.unassignedAt),
+                ),
+              )
+              .returning();
+
+            if (!promoted) {
+              throw new Error('Concurrent modification detected: Assignment state changed.');
+            }
+
+            return {
+              id: promoted.id,
+              businessId: promoted.businessId,
+              staffMemberId: promoted.staffMemberId,
+              branchId: promoted.branchId,
+              isPrimary: promoted.isPrimary,
+              assignedAt: promoted.assignedAt,
+              unassignedAt: promoted.unassignedAt,
+            };
+          }
           throw new ConflictError('Staff member is already assigned to this branch.');
         }
 
@@ -239,7 +287,7 @@ export class StaffRepository implements IStaffRepository {
         // to guarantee we only reactivate the exact state we just read.
         const [reactivated] = await tx
           .update(staffBranchAssignments)
-          .set({ isPrimary, unassignedAt: null })
+          .set({ isPrimary, unassignedAt: null, assignedAt: new Date() })
           .where(
             and(
               eq(staffBranchAssignments.id, existing.id),
@@ -343,7 +391,7 @@ export class StaffRepository implements IStaffRepository {
   /**
    * Grants a staff member permission to perform a specific service.
    * Includes optional overrides (price, duration) unique to this specific staff member.
-   * Uses `onConflictDoNothing` to silently ignore accidental duplicate assignments.
+   * Duplicate assignments will result in a ConflictError.
    */
   async assignService(
     businessId: string,
@@ -445,10 +493,18 @@ export class StaffRepository implements IStaffRepository {
           eq(staffWorkSchedules.staffMemberId, staffMemberId),
           isNull(staffWorkSchedules.effectiveUntil),
         ),
-        columns: { id: true },
+        columns: { id: true, effectiveFrom: true },
       });
 
       if (currentActive) {
+        if (new Date(data.effectiveFrom) < new Date(currentActive.effectiveFrom)) {
+          throw new ValidationError(
+            'New schedule effectiveFrom cannot precede the current active schedule effectiveFrom',
+            {
+              effectiveFrom: 'Must be strictly after or equal to the current schedule start date',
+            },
+          );
+        }
         // ARCHITECTURE: Schedule Replacement Atomic Transition
         // A staff member can only have ONE open-ended schedule. To safely transition,
         // we use CAS to target the currently open schedule (`isNull(effectiveUntil)`).

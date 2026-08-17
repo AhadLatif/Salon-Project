@@ -1,6 +1,7 @@
 import type { db } from '@salon/database';
 import { type RequestHandler, Router } from 'express';
 import { StaffMemberController } from './api/controllers/staff-member.controller.js';
+import { AddShiftToScheduleUseCase } from './application/use-cases/add-shift-to-schedule.use-case.js';
 import { AssignServiceToStaffUseCase } from './application/use-cases/assign-service-to-staff.use-case.js';
 import { AssignStaffToBranchUseCase } from './application/use-cases/assign-staff-to-branch.use-case.js';
 import { CreateStaffMemberUseCase } from './application/use-cases/create-staff-member.use-case.js';
@@ -8,6 +9,7 @@ import { CreateStaffWorkScheduleUseCase } from './application/use-cases/create-s
 import { DeactivateStaffMemberUseCase } from './application/use-cases/deactivate-staff-member.use-case.js';
 import { GetStaffMemberDetailsUseCase } from './application/use-cases/get-staff-member-details.use-case.js';
 import { GetStaffMembersUseCase } from './application/use-cases/get-staff-members.use-case.js';
+import { GetStaffWorkSchedulesUseCase } from './application/use-cases/get-staff-work-schedules.use-case.js';
 import { UnassignServiceFromStaffUseCase } from './application/use-cases/unassign-service-from-staff.use-case.js';
 import { UnassignStaffFromBranchUseCase } from './application/use-cases/unassign-staff-from-branch.use-case.js';
 import { UpdateStaffMemberUseCase } from './application/use-cases/update-staff-member.use-case.js';
@@ -45,6 +47,8 @@ export interface StaffModule {
     assignServiceToStaffUseCase: AssignServiceToStaffUseCase;
     unassignServiceFromStaffUseCase: UnassignServiceFromStaffUseCase;
     createStaffWorkScheduleUseCase: CreateStaffWorkScheduleUseCase;
+    addShiftToScheduleUseCase: AddShiftToScheduleUseCase;
+    getStaffWorkSchedulesUseCase: GetStaffWorkSchedulesUseCase;
   };
 }
 
@@ -61,6 +65,8 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
   const assignServiceToStaffUseCase = new AssignServiceToStaffUseCase(staffRepository);
   const unassignServiceFromStaffUseCase = new UnassignServiceFromStaffUseCase(staffRepository);
   const createStaffWorkScheduleUseCase = new CreateStaffWorkScheduleUseCase(staffRepository);
+  const addShiftToScheduleUseCase = new AddShiftToScheduleUseCase(staffRepository);
+  const getStaffWorkSchedulesUseCase = new GetStaffWorkSchedulesUseCase(staffRepository);
 
   const staffController = new StaffMemberController(
     createStaffMemberUseCase,
@@ -73,6 +79,8 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
     assignServiceToStaffUseCase,
     unassignServiceFromStaffUseCase,
     createStaffWorkScheduleUseCase,
+    addShiftToScheduleUseCase,
+    getStaffWorkSchedulesUseCase,
   );
 
   const staffRouter = Router({ mergeParams: true });
@@ -134,6 +142,16 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
     deps.requirePermission('staff.update'),
     staffController.createWorkSchedule.bind(staffController),
   );
+  staffRouter.get(
+    '/:staffMemberId/schedules',
+    deps.requirePermission('staff.read'),
+    staffController.getWorkSchedules.bind(staffController),
+  );
+  staffRouter.post(
+    '/:staffMemberId/schedules/:workScheduleId/shifts',
+    deps.requirePermission('staff.update'),
+    staffController.addShiftToSchedule.bind(staffController),
+  );
 
   return {
     staffRouter,
@@ -148,6 +166,8 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
       assignServiceToStaffUseCase,
       unassignServiceFromStaffUseCase,
       createStaffWorkScheduleUseCase,
+      addShiftToScheduleUseCase,
+      getStaffWorkSchedulesUseCase,
     },
   };
 }
