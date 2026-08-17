@@ -71,11 +71,12 @@ packages/
     validation/           # @salon/validation
   modules/
     identity/             # @salon/identity — auth (DONE)
-    business/             # @salon/business — business lifecycle (NEXT)
-    branch/               # @salon/branch — branch lifecycle
-    service/              # @salon/service — service catalog
-    staff/                # @salon/staff — staff profiles
-    customer/             # @salon/customer — CRM
+    business/             # @salon/business — business lifecycle (DONE)
+    branch/               # @salon/branch — branch lifecycle (DONE)
+    service/              # @salon/service — service catalog (DONE)
+    rbac/                 # @salon/rbac — roles & permissions (DONE)
+    staff/                # @salon/staff — staff profiles (DONE)
+    customer/             # @salon/customer — CRM (NEXT)
     marketplace/          # @salon/marketplace — B2C discovery
     appointment/          # @salon/appointment — booking engine
     payment/              # @salon/payment — Stripe
@@ -277,21 +278,21 @@ When current external behavior may have changed, verify it before relying on it.
 - **Business module:** tenant creation, business member setup, owner RBAC role
 - **Branch module:** branch lifecycle, opening hours, tenant-isolated operations
 - **Service module:** service catalog, service categories, branch assignment matrix
+- **RBAC module:** custom roles, permission matrix, Owner system-role bypass, `requirePermission` middleware
+- **Staff module:** staff onboarding, branch assignments (CAS primary toggle), service allocation, work schedules/shifts (CAS replacement), soft-termination
 
 ### 🔜 NEXT (in logical sequence)
-1. **Staff module** (`@salon/staff`) — onboard staff members, assign services to staff, manage staff working schedules/shifts across branches. *(Prerequisite for appointment scheduling)*
-2. **RBAC module** (`@salon/rbac`) — expand roles/permissions beyond Owner (Stylist, Receptionist, Manager) now that Staff profiles exist.
-3. **Customer module** (`@salon/customer`) — CRM, customer profiles, notes, history.
-4. **Appointment module** (`@salon/appointment`) — availability engine, booking calendar, lock-free/atomic slot booking.
-5. **Marketplace module** (`@salon/marketplace`) — public salon discovery, search by service/location.
-6. **Payment module** (`@salon/payment`) — Stripe checkout, deposits, webhook idempotency.
-7. **Notification module** (`@salon/notification`) — event-driven SMS/email reminders.
-8. **Review module** (`@salon/review`) — ratings & customer feedback.
-9. **Audit module** (`@salon/audit`) — system audit logs.
+1. **Customer module** (`@salon/customer`) — CRM, customer profiles, notes, history.
+2. **Appointment module** (`@salon/appointment`) — availability engine, booking calendar, lock-free/atomic slot booking.
+3. **Marketplace module** (`@salon/marketplace`) — public salon discovery, search by service/location.
+4. **Payment module** (`@salon/payment`) — Stripe checkout, deposits, webhook idempotency.
+5. **Notification module** (`@salon/notification`) — event-driven SMS/email reminders.
+6. **Review module** (`@salon/review`) — ratings & customer feedback.
+7. **Audit module** (`@salon/audit`) — system audit logs.
 
 ### Key ordering principle
-- **Staff before Appointment:** An appointment requires a physical branch, a service, AND an assigned staff member who is available during that shift.
-- **Staff before full RBAC:** Roles like "Stylist" or "Receptionist" are assigned to staff user profiles.
+- **Customer before Appointment:** An appointment requires an existing customer profile to book.
+- **Appointment requires:** a physical branch, a service, AND an assigned staff member who is available during that shift — all of which now exist.
 - **Business -> Branch -> Service -> Staff -> Appointment:** Real-world domain hierarchy matches Fresha platform architecture.
 
 ---

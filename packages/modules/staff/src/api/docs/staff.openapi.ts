@@ -1,5 +1,6 @@
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from '@salon/validation';
+import { addShiftToScheduleSchema } from '../dtos/add-shift-to-schedule.schema.js';
 import { assignServiceToStaffSchema } from '../dtos/assign-service-to-staff.schema.js';
 import { assignStaffToBranchSchema } from '../dtos/assign-staff-to-branch.schema.js';
 import { createStaffMemberSchema } from '../dtos/create-staff-member.schema.js';
@@ -36,9 +37,9 @@ const failureEnvelopeSchema = z.object({
 
 const staffResponseSchema = z
   .object({
-    id: z.string().uuid(),
-    businessId: z.string().uuid(),
-    businessMemberId: z.string().uuid(),
+    id: z.uuid(),
+    businessId: z.uuid(),
+    businessMemberId: z.uuid(),
     displayName: z.string(),
     jobTitle: z.string().nullable(),
     biography: z.string().nullable(),
@@ -49,8 +50,8 @@ const staffResponseSchema = z
     languages: z.array(z.string()).nullable(),
     socialLinks: z.record(z.string(), z.string()).nullable(),
     status: z.enum(['active', 'terminated']),
-    createdAt: z.date(),
-    updatedAt: z.date(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
   })
   .openapi('StaffMember');
 
@@ -61,8 +62,8 @@ const staffBranchAssignmentSchema = z
     staffMemberId: z.uuid(),
     branchId: z.uuid(),
     isPrimary: z.boolean(),
-    assignedAt: z.date(),
-    unassignedAt: z.date().nullable(),
+    assignedAt: z.string().datetime(),
+    unassignedAt: z.string().datetime().nullable(),
   })
   .openapi('StaffBranchAssignment');
 
@@ -88,6 +89,20 @@ const staffWorkScheduleSchema = z
     effectiveUntil: z.string().nullable(),
   })
   .openapi('StaffWorkSchedule');
+
+const staffScheduleShiftSchema = z
+  .object({
+    id: z.uuid(),
+    workScheduleId: z.uuid(),
+    dayOfWeek: z.number().int(),
+    startsAt: z.string(),
+    endsAt: z.string(),
+  })
+  .openapi('StaffScheduleShift');
+
+const staffWorkScheduleWithShiftsSchema = staffWorkScheduleSchema.extend({
+  shifts: z.array(staffScheduleShiftSchema),
+});
 
 // GET /api/v1/businesses/{businessId}/staff
 staffOpenApiRegistry.registerPath({
@@ -342,6 +357,51 @@ staffOpenApiRegistry.registerPath({
       content: {
         'application/json': {
           schema: successEnvelopeSchema(staffWorkScheduleSchema),
+        },
+      },
+    },
+  },
+});
+
+// GET /api/v1/businesses/{businessId}/staff/{staffMemberId}/schedules
+staffOpenApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/v1/businesses/{businessId}/staff/{staffMemberId}/schedules',
+  summary: 'Get staff work schedules',
+  tags: ['Staff'],
+  request: {
+    params: z.object({ businessId: z.uuid(), staffMemberId: z.uuid() }),
+  },
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Schedules retrieved successfully',
+      content: {
+        'application/json': {
+          schema: successEnvelopeSchema(z.array(staffWorkScheduleWithShiftsSchema)),
+        },
+      },
+    },
+  },
+});
+
+// POST /api/v1/businesses/{businessId}/staff/{staffMemberId}/schedules/{workScheduleId}/shifts
+staffOpenApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/v1/businesses/{businessId}/staff/{staffMemberId}/schedules/{workScheduleId}/shifts',
+  summary: 'Add a shift to a schedule',
+  tags: ['Staff'],
+  request: {
+    params: z.object({ businessId: z.uuid(), staffMemberId: z.uuid(), workScheduleId: z.uuid() }),
+    body: { content: { 'application/json': { schema: addShiftToScheduleSchema } } },
+  },
+  security: [{ bearerAuth: [] }],
+  responses: {
+    201: {
+      description: 'Shift added successfully',
+      content: {
+        'application/json': {
+          schema: successEnvelopeSchema(staffScheduleShiftSchema),
         },
       },
     },
