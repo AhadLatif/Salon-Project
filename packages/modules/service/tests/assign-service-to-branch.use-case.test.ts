@@ -1,8 +1,6 @@
-import { randomUUID } from 'node:crypto';
-// We don't have branch factory in testing yet, so we'll do raw insert for tests
-import { branches, db } from '@salon/database';
+import { db } from '@salon/database';
 import { ConflictError, ForbiddenError } from '@salon/shared';
-import { createTestBusiness, truncateAllTables } from '@salon/testing';
+import { createTestBranch, createTestBusiness, truncateAllTables } from '@salon/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AssignServiceToBranchUseCase } from '../src/application/use-cases/assign-service-to-branch.use-case.js';
 import { ServiceRepository } from '../src/infrastructure/repositories/service.repository.js';
@@ -20,30 +18,9 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
     useCase = new AssignServiceToBranchUseCase(serviceRepo);
   });
 
-  const createTestBranch = async (businessId: string, status: 'active' | 'archived' = 'active') => {
-    const [branch] = await db
-      .insert(branches)
-      .values({
-        id: randomUUID(),
-        businessId,
-        name: 'Test Branch',
-        timezone: 'UTC',
-        currency: 'USD',
-        addressLine1: '123 Main',
-        city: 'Test City',
-        countryCode: 'US',
-        status,
-      })
-      .returning();
-
-    if (!branch) throw new Error('Failed to create test branch');
-
-    return branch;
-  };
-
   it('should assign a service to a branch successfully', async () => {
     const business = await createTestBusiness(db);
-    const branch = await createTestBranch(business.id);
+    const branch = await createTestBranch(db, { businessId: business.id });
     const category = await categoryRepo.create({ businessId: business.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -67,7 +44,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
   it('should throw ForbiddenError if branch does not belong to business', async () => {
     const business1 = await createTestBusiness(db);
     const business2 = await createTestBusiness(db);
-    const branchB2 = await createTestBranch(business2.id); // branch in b2
+    const branchB2 = await createTestBranch(db, { businessId: business2.id }); // branch in b2
     const category = await categoryRepo.create({ businessId: business1.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -85,7 +62,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
 
   it('should throw ForbiddenError if branch is archived', async () => {
     const business = await createTestBusiness(db);
-    const branch = await createTestBranch(business.id, 'archived');
+    const branch = await createTestBranch(db, { businessId: business.id, status: 'archived' });
     const category = await categoryRepo.create({ businessId: business.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -103,7 +80,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
 
   it('should throw ConflictError if service is inactive', async () => {
     const business = await createTestBusiness(db);
-    const branch = await createTestBranch(business.id);
+    const branch = await createTestBranch(db, { businessId: business.id });
     const category = await categoryRepo.create({ businessId: business.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -123,7 +100,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
 
   it('should throw ConflictError if already assigned', async () => {
     const business = await createTestBusiness(db);
-    const branch = await createTestBranch(business.id);
+    const branch = await createTestBranch(db, { businessId: business.id });
     const category = await categoryRepo.create({ businessId: business.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -143,7 +120,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
 
   it('should handle concurrent assignments without database constraint errors', async () => {
     const business = await createTestBusiness(db);
-    const branch = await createTestBranch(business.id);
+    const branch = await createTestBranch(db, { businessId: business.id });
     const category = await categoryRepo.create({ businessId: business.id, name: 'Haircuts' });
 
     const service = await serviceRepo.create({
@@ -167,8 +144,9 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
 
-    if (rejected[0].status === 'rejected') {
-      expect(rejected[0].reason).toBeInstanceOf(ConflictError);
+    const firstRejected = rejected[0];
+    if (firstRejected && firstRejected.status === 'rejected') {
+      expect(firstRejected.reason).toBeInstanceOf(ConflictError);
     }
   });
 });
