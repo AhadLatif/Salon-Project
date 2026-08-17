@@ -5,6 +5,7 @@ import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
 import { createRbacModule } from '@salon/rbac';
 import { createServiceModule } from '@salon/service';
+import { createStaffModule } from '@salon/staff';
 import type { Express } from 'express';
 import { Router } from 'express';
 import { registerHealthRoutes } from './health.route.js';
@@ -47,13 +48,22 @@ export function initializeModules(app: Express): void {
     requirePermission: rbacModule.requirePermission,
   });
 
-  // 6. Mount Module Routers onto API Pipeline
+  // 6. Initialize Staff Module
+  const staffModule = createStaffModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+  });
+
+  // 7. Mount Module Routers onto API Pipeline
   const v1Router = Router();
 
   v1Router.use('/auth', identityModule.authRouter);
   v1Router.use('/businesses', businessModule.businessRouter);
   v1Router.use('/businesses', rbacModule.rbacRouter);
   v1Router.use('/businesses/:id/branches', branchModule.branchRouter);
+  v1Router.use('/businesses/:id/staff', staffModule.staffRouter);
   v1Router.use('/businesses/:id', serviceModule);
 
   app.use('/api/v1', v1Router);

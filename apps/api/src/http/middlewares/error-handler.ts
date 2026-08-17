@@ -1,6 +1,7 @@
 import {
   AppError,
   ConflictError,
+  ForbiddenError,
   ResourceNotFoundError,
   TenantIsolationError,
   UnauthorizedError,
@@ -26,6 +27,7 @@ export function globalErrorHandler(
 
     if (err instanceof ValidationError) statusCode = 400;
     else if (err instanceof UnauthorizedError) statusCode = 401;
+    else if (err instanceof ForbiddenError) statusCode = 403;
     // Map TenantIsolation to 404 to obscure the existence of other tenants' data
     else if (err instanceof ResourceNotFoundError || err instanceof TenantIsolationError)
       statusCode = 404;

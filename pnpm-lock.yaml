@@ -68,6 +68,9 @@ importers:
       '@salon/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@salon/staff':
+        specifier: workspace:*
+        version: link:../../packages/modules/staff
       '@salon/validation':
         specifier: workspace:*
         version: link:../../packages/infrastructure/validation
@@ -512,13 +515,44 @@ importers:
         version: 3.2.7(@types/debug@4.1.13)(@types/node@26.0.1)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/modules/staff:
+    dependencies:
+      '@asteasolutions/zod-to-openapi':
+        specifier: ^9.1.0
+        version: 9.1.0(zod@4.4.3)
+      '@salon/database':
+        specifier: workspace:*
+        version: link:../../infrastructure/database
+      '@salon/shared':
+        specifier: workspace:*
+        version: link:../../shared
+      '@salon/validation':
+        specifier: workspace:*
+        version: link:../../infrastructure/validation
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.20.0)(pg@8.22.0)
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
+      '@salon/testing':
+        specifier: workspace:*
+        version: link:../../testing
       '@salon/typescript-config':
         specifier: workspace:*
         version: link:../../../configs/typescript-config
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@26.0.1)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/shared:
     devDependencies:
