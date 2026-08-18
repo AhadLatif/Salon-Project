@@ -36,6 +36,13 @@
       "when": 1786305995088,
       "tag": "0004_standardize_business_rbac_schemas",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787050400560,
+      "tag": "0005_add_branch_id_to_work_schedules",
+      "breakpoints": true
     }
   ]
 }

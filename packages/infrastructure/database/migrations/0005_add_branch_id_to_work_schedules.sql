@@ -1,0 +1,3 @@
+ALTER TABLE "staff_work_schedules" ADD COLUMN "branch_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "staff_work_schedules" ADD CONSTRAINT "fk_staff_work_schedule_branch_tenant" FOREIGN KEY ("business_id","branch_id") REFERENCES "public"."branches"("business_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_staff_work_schedule_staff_branch" ON "staff_work_schedules" USING btree ("staff_member_id","branch_id") WHERE "staff_work_schedules"."effective_until" IS NULL;
