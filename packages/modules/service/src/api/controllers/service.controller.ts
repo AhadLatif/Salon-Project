@@ -20,6 +20,7 @@ declare global {
         businessId: string;
         memberId: string;
         roleId: string;
+        branchId?: string;
       };
     }
   }

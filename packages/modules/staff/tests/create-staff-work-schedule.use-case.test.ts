@@ -28,25 +28,97 @@ describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
     // First assign staff to branch
     await repo.assignToBranch(business.id, staff.id, branch.id, true);
 
-    const result = await useCase.execute(business.id, staff.id, {
+    const result = await useCase.execute(business.id, staff.id, branch.id, {
       recurrencePattern: 'weekly',
       effectiveFrom: new Date('2025-01-01').toISOString(),
     });
 
     expect(result).toBeDefined();
     expect(result.staffMemberId).toBe(staff.id);
+    expect(result.branchId).toBe(branch.id);
     expect(result.effectiveUntil).toBeNull();
     expect(result.recurrencePattern).toBe('weekly');
   });
 
   it('should throw ResourceNotFoundError when staff does not exist', async () => {
     const business = await createTestBusiness(db);
+    const branch = await createTestBranch(db, { businessId: business.id });
 
     await expect(
-      useCase.execute(business.id, '00000000-0000-0000-0000-000000000000', {
+      useCase.execute(business.id, '00000000-0000-0000-0000-000000000000', branch.id, {
         recurrencePattern: 'weekly',
         effectiveFrom: new Date('2025-01-01').toISOString(),
       }),
     ).rejects.toThrow(ResourceNotFoundError);
+  });
+
+  it('should throw ResourceNotFoundError when branch does not belong to the business', async () => {
+    const business = await createTestBusiness(db);
+    const staff = await createTestStaffMember(db, { businessId: business.id });
+    const _otherBranch = await createTestBranch(db, { businessId: business.id });
+
+    await expect(
+      useCase.execute(business.id, staff.id, '00000000-0000-0000-0000-000000000000', {
+        recurrencePattern: 'weekly',
+        effectiveFrom: new Date('2025-01-01').toISOString(),
+      }),
+    ).rejects.toThrow(ResourceNotFoundError);
+  });
+
+  it('should enforce one open schedule per staff per branch (replace existing)', async () => {
+    const business = await createTestBusiness(db);
+    const staff = await createTestStaffMember(db, { businessId: business.id });
+    const branch = await createTestBranch(db, { businessId: business.id });
+
+    await repo.assignToBranch(business.id, staff.id, branch.id, true);
+
+    // Create first schedule
+    const first = await useCase.execute(business.id, staff.id, branch.id, {
+      recurrencePattern: 'weekly',
+      effectiveFrom: new Date('2025-01-01').toISOString(),
+    });
+
+    expect(first.effectiveUntil).toBeNull();
+
+    // Create second schedule - should close the first
+    const second = await useCase.execute(business.id, staff.id, branch.id, {
+      recurrencePattern: 'weekly',
+      effectiveFrom: new Date('2025-02-01').toISOString(),
+    });
+
+    expect(second.effectiveUntil).toBeNull();
+
+    // The first schedule should now be closed
+    const schedules = await repo.getWorkSchedules(business.id, staff.id);
+    const branchSchedules = schedules.filter((s) => s.branchId === branch.id);
+    expect(branchSchedules).toHaveLength(2);
+    const closed = branchSchedules.find((s) => s.id === first.id);
+    expect(closed?.effectiveUntil).toBeDefined();
+  });
+
+  it('should allow different schedules for different branches', async () => {
+    const business = await createTestBusiness(db);
+    const staff = await createTestStaffMember(db, { businessId: business.id });
+    const branchA = await createTestBranch(db, { businessId: business.id });
+    const branchB = await createTestBranch(db, { businessId: business.id });
+
+    await repo.assignToBranch(business.id, staff.id, branchA.id, true);
+    await repo.assignToBranch(business.id, staff.id, branchB.id, false);
+
+    const scheduleA = await useCase.execute(business.id, staff.id, branchA.id, {
+      recurrencePattern: 'weekly',
+      effectiveFrom: new Date('2025-01-01').toISOString(),
+    });
+
+    const scheduleB = await useCase.execute(business.id, staff.id, branchB.id, {
+      recurrencePattern: 'biweekly',
+      effectiveFrom: new Date('2025-01-01').toISOString(),
+    });
+
+    expect(scheduleA.branchId).toBe(branchA.id);
+    expect(scheduleB.branchId).toBe(branchB.id);
+
+    const schedules = await repo.getWorkSchedules(business.id, staff.id);
+    expect(schedules).toHaveLength(2);
   });
 });

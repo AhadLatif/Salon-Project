@@ -32,6 +32,7 @@ export interface StaffModuleDependencies {
   authMiddleware: RequestHandler;
   tenantMiddleware: RequestHandler;
   requirePermission: (permissionCode: string) => RequestHandler;
+  requireBranchContext: RequestHandler;
 }
 
 export interface StaffModule {
@@ -140,16 +141,19 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
   staffRouter.post(
     '/:staffMemberId/schedules',
     deps.requirePermission('staff.update'),
+    deps.requireBranchContext,
     staffController.createWorkSchedule.bind(staffController),
   );
   staffRouter.get(
     '/:staffMemberId/schedules',
     deps.requirePermission('staff.read'),
+    deps.requireBranchContext,
     staffController.getWorkSchedules.bind(staffController),
   );
   staffRouter.post(
     '/:staffMemberId/schedules/:workScheduleId/shifts',
     deps.requirePermission('staff.update'),
+    deps.requireBranchContext,
     staffController.addShiftToSchedule.bind(staffController),
   );
 

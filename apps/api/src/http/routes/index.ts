@@ -54,6 +54,7 @@ export function initializeModules(app: Express): void {
     authMiddleware: identityModule.authMiddleware,
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
+    requireBranchContext: rbacModule.requireBranchContext,
   });
 
   // 7. Mount Module Routers onto API Pipeline

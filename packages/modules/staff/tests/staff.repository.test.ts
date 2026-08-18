@@ -185,13 +185,14 @@ describe('StaffRepository Integration Tests', () => {
     it('should automatically close previous schedule when a new open-ended one is created', async () => {
       const business = await createTestBusiness(db);
       const staff = await createTestStaffMember(db, { businessId: business.id });
+      const branch = await createTestBranch(db, { businessId: business.id });
 
       const schedule1 = {
         recurrencePattern: 'weekly' as const,
         effectiveFrom: new Date('2023-01-01').toISOString(),
       };
 
-      await repository.createWorkSchedule(business.id, staff.id, schedule1);
+      await repository.createWorkSchedule(business.id, staff.id, branch.id, schedule1);
 
       let schedules = await repository.getWorkSchedules(business.id, staff.id);
       expect(schedules).toHaveLength(1);
@@ -204,7 +205,7 @@ describe('StaffRepository Integration Tests', () => {
         effectiveFrom: effectiveFrom2.toISOString(),
       };
 
-      await repository.createWorkSchedule(business.id, staff.id, schedule2);
+      await repository.createWorkSchedule(business.id, staff.id, branch.id, schedule2);
 
       schedules = await repository.getWorkSchedules(business.id, staff.id);
       expect(schedules).toHaveLength(2);
@@ -226,6 +227,7 @@ describe('StaffRepository Integration Tests', () => {
     it('should prevent multiple open-ended schedules via concurrent creation (CAS logic)', async () => {
       const business = await createTestBusiness(db);
       const staff = await createTestStaffMember(db, { businessId: business.id });
+      const branch = await createTestBranch(db, { businessId: business.id });
 
       const schedule1 = {
         recurrencePattern: 'weekly' as const,
@@ -237,8 +239,8 @@ describe('StaffRepository Integration Tests', () => {
       };
 
       await Promise.allSettled([
-        repository.createWorkSchedule(business.id, staff.id, schedule1),
-        repository.createWorkSchedule(business.id, staff.id, schedule2),
+        repository.createWorkSchedule(business.id, staff.id, branch.id, schedule1),
+        repository.createWorkSchedule(business.id, staff.id, branch.id, schedule2),
       ]);
 
       const schedules = await repository.getWorkSchedules(business.id, staff.id);

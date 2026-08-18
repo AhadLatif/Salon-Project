@@ -71,6 +71,7 @@ declare global {
         businessId: string;
         memberId: string;
         roleId: string;
+        branchId?: string;
       };
     }
   }
@@ -311,9 +312,20 @@ export class StaffMemberController {
         );
       }
 
+      if (!req.tenant?.branchId) {
+        throw new Error('Tenant branch context missing.');
+      }
+
+      if ('branchId' in parseResult.data && parseResult.data.branchId !== req.tenant.branchId) {
+        throw new ForbiddenError(
+          'Requested branch ID does not match the authorized branch context.',
+        );
+      }
+
       const schedule = await this.createStaffWorkScheduleUseCase.execute(
         businessId,
         staffMemberId,
+        req.tenant.branchId,
         parseResult.data,
       );
       res.status(201).json({
@@ -332,7 +344,15 @@ export class StaffMemberController {
       const businessId = validateTenantConsistency(req);
       const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
 
-      const schedules = await this.getStaffWorkSchedulesUseCase.execute(businessId, staffMemberId);
+      if (!req.tenant?.branchId) {
+        throw new Error('Tenant branch context missing.');
+      }
+
+      const schedules = await this.getStaffWorkSchedulesUseCase.execute(
+        businessId,
+        staffMemberId,
+        req.tenant.branchId,
+      );
       res.status(200).json({
         success: true,
         data: { schedules },
@@ -355,8 +375,13 @@ export class StaffMemberController {
         throw new ValidationError('Invalid shift data', formatZodErrors(parseResult.error.issues));
       }
 
+      if (!req.tenant?.branchId) {
+        throw new Error('Tenant branch context missing.');
+      }
+
       const shift = await this.addShiftToScheduleUseCase.execute(
         businessId,
+        req.tenant.branchId,
         workScheduleId,
         parseResult.data,
       );

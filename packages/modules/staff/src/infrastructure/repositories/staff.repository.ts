@@ -184,11 +184,16 @@ export class StaffRepository implements IStaffRepository {
     return !!service;
   }
 
-  async isWorkScheduleInBusiness(businessId: string, workScheduleId: string): Promise<boolean> {
+  async isWorkScheduleInBusinessAndBranch(
+    businessId: string,
+    branchId: string,
+    workScheduleId: string,
+  ): Promise<boolean> {
     const schedule = await this.database.query.staffWorkSchedules.findFirst({
       where: and(
         eq(staffWorkSchedules.id, workScheduleId),
         eq(staffWorkSchedules.businessId, businessId),
+        eq(staffWorkSchedules.branchId, branchId),
       ),
       columns: { id: true },
     });
@@ -479,6 +484,7 @@ export class StaffRepository implements IStaffRepository {
   async createWorkSchedule(
     businessId: string,
     staffMemberId: string,
+    branchId: string,
     data: {
       recurrencePattern: 'weekly' | 'biweekly' | 'triweekly' | 'four_weekly';
       effectiveFrom: string;
@@ -486,11 +492,12 @@ export class StaffRepository implements IStaffRepository {
     },
   ): Promise<StaffWorkSchedule> {
     return this.database.transaction(async (tx) => {
-      // Retrieve any existing active schedule
+      // Retrieve any existing active schedule for this staff member at this branch
       const currentActive = await tx.query.staffWorkSchedules.findFirst({
         where: and(
           eq(staffWorkSchedules.businessId, businessId),
           eq(staffWorkSchedules.staffMemberId, staffMemberId),
+          eq(staffWorkSchedules.branchId, branchId),
           isNull(staffWorkSchedules.effectiveUntil),
         ),
         columns: { id: true, effectiveFrom: true },
@@ -506,7 +513,7 @@ export class StaffRepository implements IStaffRepository {
           );
         }
         // ARCHITECTURE: Schedule Replacement Atomic Transition
-        // A staff member can only have ONE open-ended schedule. To safely transition,
+        // A staff member can only have ONE open-ended schedule per branch. To safely transition,
         // we use CAS to target the currently open schedule (`isNull(effectiveUntil)`).
         // By setting the new schedule's `effectiveFrom` as its end date, we mathematically
         // guarantee contiguous schedules without race conditions yielding multiple active records.
@@ -531,6 +538,7 @@ export class StaffRepository implements IStaffRepository {
         .values({
           businessId,
           staffMemberId,
+          branchId,
           recurrencePattern: data.recurrencePattern,
           effectiveFrom: data.effectiveFrom,
           effectiveUntil: data.effectiveUntil ?? null,
@@ -545,6 +553,7 @@ export class StaffRepository implements IStaffRepository {
         id: schedule.id,
         businessId: schedule.businessId,
         staffMemberId: schedule.staffMemberId,
+        branchId: schedule.branchId,
         recurrencePattern: schedule.recurrencePattern,
         effectiveFrom: schedule.effectiveFrom,
         effectiveUntil: schedule.effectiveUntil,
@@ -582,11 +591,13 @@ export class StaffRepository implements IStaffRepository {
   async getWorkSchedules(
     businessId: string,
     staffMemberId: string,
+    branchId?: string,
   ): Promise<(StaffWorkSchedule & { shifts: StaffScheduleShift[] })[]> {
     const schedules = await this.database.query.staffWorkSchedules.findMany({
       where: and(
         eq(staffWorkSchedules.businessId, businessId),
         eq(staffWorkSchedules.staffMemberId, staffMemberId),
+        branchId ? eq(staffWorkSchedules.branchId, branchId) : undefined,
       ),
       with: {
         shifts: true,
@@ -597,6 +608,7 @@ export class StaffRepository implements IStaffRepository {
       id: s.id,
       businessId: s.businessId,
       staffMemberId: s.staffMemberId,
+      branchId: s.branchId,
       recurrencePattern: s.recurrencePattern,
       effectiveFrom: s.effectiveFrom,
       effectiveUntil: s.effectiveUntil,

@@ -12,14 +12,19 @@ export class AddShiftToScheduleUseCase {
 
   async execute(
     businessId: string,
+    branchId: string,
     workScheduleId: string,
     data: AddShiftToScheduleData,
   ): Promise<StaffScheduleShift> {
     // Tenant Boundary check
-    const isValid = await this.staffRepository.isWorkScheduleInBusiness(businessId, workScheduleId);
+    const isValid = await this.staffRepository.isWorkScheduleInBusinessAndBranch(
+      businessId,
+      branchId,
+      workScheduleId,
+    );
     if (!isValid) {
       throw new ForbiddenError(
-        'Invalid work schedule ID or schedule does not belong to this business',
+        'Invalid work schedule ID or schedule does not belong to this business or branch',
       );
     }
 

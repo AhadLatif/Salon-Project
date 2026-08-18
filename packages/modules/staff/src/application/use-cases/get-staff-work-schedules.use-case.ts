@@ -11,12 +11,13 @@ export class GetStaffWorkSchedulesUseCase {
   async execute(
     businessId: string,
     staffMemberId: string,
+    branchId: string,
   ): Promise<(StaffWorkSchedule & { shifts: StaffScheduleShift[] })[]> {
     const staff = await this.staffRepository.findById(businessId, staffMemberId);
     if (!staff) {
       throw new ResourceNotFoundError('Staff member not found');
     }
 
-    return await this.staffRepository.getWorkSchedules(businessId, staffMemberId);
+    return await this.staffRepository.getWorkSchedules(businessId, staffMemberId, branchId);
   }
 }
