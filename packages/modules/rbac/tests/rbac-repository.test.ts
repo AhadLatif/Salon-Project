@@ -1,6 +1,11 @@
 import { db } from '@salon/database';
 import { OWNER_ROLE_NAME } from '@salon/shared';
-import { createTestBusiness, createTestRole, truncateAllTables } from '@salon/testing';
+import {
+  createTestBranch,
+  createTestBusiness,
+  createTestRole,
+  truncateAllTables,
+} from '@salon/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RbacRepository } from '../src/infrastructure/repositories/rbac.repository.js';
 
@@ -57,5 +62,29 @@ describe('RbacRepository Integration Tests', () => {
     expect(roles.length).toBe(1);
     expect(roles[0]).toBeDefined();
     expect(roles[0]?.name).toBe('Manager');
+  });
+
+  it('should return false for hasBranchAccess when owner attempts to use a branch from another business', async () => {
+    const business1 = await createTestBusiness(db);
+    const business2 = await createTestBusiness(db);
+
+    const ownerRole1 = await createTestRole(db, {
+      businessId: business1.id,
+      name: OWNER_ROLE_NAME,
+      isSystem: true,
+    });
+
+    const branch2 = await createTestBranch(db, {
+      businessId: business2.id,
+      name: 'Business 2 Branch',
+    });
+
+    const hasAccess = await repository.hasBranchAccess(
+      ownerRole1.id,
+      business1.id,
+      '123e4567-e89b-12d3-a456-426614174000',
+      branch2.id,
+    );
+    expect(hasAccess).toBe(false);
   });
 });

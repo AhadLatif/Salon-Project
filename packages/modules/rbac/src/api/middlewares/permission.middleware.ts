@@ -12,6 +12,7 @@ declare global {
         memberId: string;
         roleId: string;
         businessId: string;
+        branchId?: string; // Populated by branchContextMiddleware
       };
     }
   }

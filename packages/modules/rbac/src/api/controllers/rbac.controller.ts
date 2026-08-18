@@ -7,19 +7,6 @@ import type { UpdateRolePermissionsUseCase } from '../../application/use-cases/u
 import { createRoleSchema } from '../dtos/create-role.schema.js';
 import { updateRolePermissionsSchema } from '../dtos/update-role-permissions.schema.js';
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      tenant?: {
-        businessId: string;
-        memberId: string;
-        roleId: string;
-      };
-    }
-  }
-}
-
 function validateTenantConsistency(req: Request): string {
   const businessIdFromTenant = req.tenant?.businessId;
   if (!businessIdFromTenant) {

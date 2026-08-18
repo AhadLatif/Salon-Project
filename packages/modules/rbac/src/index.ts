@@ -1,6 +1,7 @@
 import type { db } from '@salon/database';
 import { type RequestHandler, Router } from 'express';
 import { RbacController } from './api/controllers/rbac.controller.js';
+import { createRequireBranchContextMiddleware } from './api/middlewares/branch-context.middleware.js';
 import { createRequirePermissionMiddleware } from './api/middlewares/permission.middleware.js';
 import { CreateCustomRoleUseCase } from './application/use-cases/create-custom-role.use-case.js';
 import { GetBusinessRolesUseCase } from './application/use-cases/get-business-roles.use-case.js';
@@ -13,6 +14,7 @@ export * from './api/controllers/rbac.controller.js';
 export * from './api/docs/rbac.openapi.js';
 export * from './api/dtos/create-role.schema.js';
 export * from './api/dtos/update-role-permissions.schema.js';
+export * from './api/middlewares/branch-context.middleware.js';
 export * from './api/middlewares/permission.middleware.js';
 export * from './application/ports/rbac-repository.port.js';
 export * from './application/use-cases/create-custom-role.use-case.js';
@@ -31,6 +33,7 @@ export interface RbacModuleDependencies {
 export interface RbacModule {
   rbacRouter: Router;
   requirePermission: (permissionCode: string) => RequestHandler;
+  requireBranchContext: RequestHandler;
   useCases: {
     getPermissionsCatalogUseCase: GetPermissionsCatalogUseCase;
     getBusinessRolesUseCase: GetBusinessRolesUseCase;
@@ -48,6 +51,7 @@ export function createRbacModule(deps: RbacModuleDependencies): RbacModule {
   const updateRolePermissionsUseCase = new UpdateRolePermissionsUseCase(rbacRepository);
 
   const requirePermission = createRequirePermissionMiddleware(rbacRepository);
+  const requireBranchContext = createRequireBranchContextMiddleware(rbacRepository);
 
   const rbacController = new RbacController(
     getPermissionsCatalogUseCase,
@@ -87,6 +91,7 @@ export function createRbacModule(deps: RbacModuleDependencies): RbacModule {
   return {
     rbacRouter,
     requirePermission,
+    requireBranchContext,
     useCases: {
       getPermissionsCatalogUseCase,
       getBusinessRolesUseCase,

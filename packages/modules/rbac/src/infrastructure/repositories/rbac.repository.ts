@@ -1,6 +1,14 @@
-import { businessRolePermissions, businessRoles, type db, permissions } from '@salon/database';
+import {
+  branches,
+  businessRolePermissions,
+  businessRoles,
+  type db,
+  permissions,
+  staffBranchAssignments,
+  staffMembers,
+} from '@salon/database';
 import { OWNER_ROLE_NAME, ValidationError } from '@salon/shared';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import type {
   CreateRoleData,
   IRbacRepository,
@@ -207,5 +215,65 @@ export class RbacRepository implements IRbacRepository {
       .limit(1);
 
     return !!match;
+  }
+
+  async hasBranchAccess(
+    roleId: string,
+    businessId: string,
+    businessMemberId: string,
+    branchId: string,
+  ): Promise<boolean> {
+    const [role] = await this.database
+      .select({
+        isSystem: businessRoles.isSystem,
+        name: businessRoles.name,
+      })
+      .from(businessRoles)
+      .where(and(eq(businessRoles.id, roleId), eq(businessRoles.businessId, businessId)))
+      .limit(1);
+
+    // Owners have implicit access to all branches, provided the branch belongs to the business
+    if (role?.isSystem && role.name === OWNER_ROLE_NAME) {
+      const [branch] = await this.database
+        .select({ id: branches.id })
+        .from(branches)
+        .where(and(eq(branches.id, branchId), eq(branches.businessId, businessId)))
+        .limit(1);
+
+      if (branch) {
+        return true;
+      }
+    }
+
+    // Map businessMember to staffMember
+    const [staff] = await this.database
+      .select({ id: staffMembers.id })
+      .from(staffMembers)
+      .where(
+        and(
+          eq(staffMembers.businessId, businessId),
+          eq(staffMembers.businessMemberId, businessMemberId),
+          ne(staffMembers.status, 'terminated'),
+        ),
+      )
+      .limit(1);
+
+    if (!staff) return false;
+
+    // Verify active branch assignment
+    const [assignment] = await this.database
+      .select({ id: staffBranchAssignments.id })
+      .from(staffBranchAssignments)
+      .where(
+        and(
+          eq(staffBranchAssignments.businessId, businessId),
+          eq(staffBranchAssignments.staffMemberId, staff.id),
+          eq(staffBranchAssignments.branchId, branchId),
+          isNull(staffBranchAssignments.unassignedAt),
+        ),
+      )
+      .limit(1);
+
+    return !!assignment;
   }
 }
