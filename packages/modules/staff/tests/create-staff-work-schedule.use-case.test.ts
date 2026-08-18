@@ -55,10 +55,11 @@ describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
   it('should throw ResourceNotFoundError when branch does not belong to the business', async () => {
     const business = await createTestBusiness(db);
     const staff = await createTestStaffMember(db, { businessId: business.id });
-    const _otherBranch = await createTestBranch(db, { businessId: business.id });
+    const otherBusiness = await createTestBusiness(db);
+    const otherBranch = await createTestBranch(db, { businessId: otherBusiness.id });
 
     await expect(
-      useCase.execute(business.id, staff.id, '00000000-0000-0000-0000-000000000000', {
+      useCase.execute(business.id, staff.id, otherBranch.id, {
         recurrencePattern: 'weekly',
         effectiveFrom: new Date('2025-01-01').toISOString(),
       }),
