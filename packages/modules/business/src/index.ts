@@ -2,6 +2,10 @@ import type { db } from '@salon/database';
 import { type RequestHandler, Router } from 'express';
 import { BusinessController } from './api/controllers/business.controller.js';
 import { createTenantMiddleware } from './api/middlewares/tenant.middleware.js';
+import {
+  BusinessValidationService,
+  type IBusinessValidationService,
+} from './application/services/business-validation.service.js';
 import { CreateBusinessUseCase } from './application/use-cases/create-business.use-case.js';
 import { GetBusinessByIdUseCase } from './application/use-cases/get-business-by-id.use-case.js';
 import { GetMyBusinessesUseCase } from './application/use-cases/get-my-businesses.use-case.js';
@@ -15,6 +19,7 @@ export * from './api/dtos/create-business.schema.js';
 export * from './api/dtos/update-business.schema.js';
 export * from './api/middlewares/tenant.middleware.js';
 export * from './application/ports/business-repository.port.js';
+export * from './application/services/business-validation.service.js';
 export * from './application/use-cases/create-business.use-case.js';
 export * from './application/use-cases/get-business-by-id.use-case.js';
 export * from './application/use-cases/get-my-businesses.use-case.js';
@@ -31,6 +36,7 @@ export interface BusinessModuleDependencies {
 export interface BusinessModule {
   businessRouter: Router;
   tenantMiddleware: RequestHandler;
+  businessValidationService: IBusinessValidationService;
   useCases: {
     createBusinessUseCase: CreateBusinessUseCase;
     getMyBusinessesUseCase: GetMyBusinessesUseCase;
@@ -43,6 +49,7 @@ export interface BusinessModule {
 export function createBusinessModule(deps: BusinessModuleDependencies): BusinessModule {
   // A. Infrastructure Adapters
   const businessRepository = new BusinessRepository(deps.database);
+  const businessValidationService = new BusinessValidationService(businessRepository);
 
   // B. Application Use Cases
   const createBusinessUseCase = new CreateBusinessUseCase(businessRepository);
@@ -65,12 +72,27 @@ export function createBusinessModule(deps: BusinessModuleDependencies): Business
   // Business Profile Routes
   businessRouter.post('/', deps.authMiddleware, businessController.create);
   businessRouter.get('/me', deps.authMiddleware, businessController.getMyBusinesses);
-  businessRouter.get('/:id', deps.authMiddleware, tenantMiddleware, businessController.getById);
-  businessRouter.patch('/:id', deps.authMiddleware, tenantMiddleware, businessController.update);
+  // SECURITY: Route param is named `:businessId` (not `:id`) so that `getTenantContext`
+  // can assert the URL businessId equals the verified `req.tenant.businessId` (header).
+  // Without this, the URL param would silently diverge from the authorized tenant,
+  // creating an IDOR vector.
+  businessRouter.get(
+    '/:businessId',
+    deps.authMiddleware,
+    tenantMiddleware,
+    businessController.getById,
+  );
+  businessRouter.patch(
+    '/:businessId',
+    deps.authMiddleware,
+    tenantMiddleware,
+    businessController.update,
+  );
 
   return {
     businessRouter,
     tenantMiddleware,
+    businessValidationService,
     useCases: {
       createBusinessUseCase,
       getMyBusinessesUseCase,

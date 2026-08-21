@@ -19,19 +19,23 @@ declare global {
 }
 
 /**
- * Middleware to enforce tenant isolation.
+ * TENANT ISOLATION & MEMBERSHIP VERIFICATION MIDDLEWARE FACTORY
  *
- * Flow:
- * 1. Requires `req.user` to exist (must be placed after authMiddleware).
- * 2. Extracts `x-business-id` from HTTP headers.
- * 3. Validates that `x-business-id` is a valid UUID.
- * 4. Checks the database (via repository) if the authenticated user has an active membership in that business.
- * 5. Attaches `req.tenant` with the verified context or throws ForbiddenError.
+ * Intercepts incoming requests, extracts `x-business-id` header, verifies that the
+ * authenticated user (`req.user`) has an active membership in that business, and attaches `req.tenant`.
  *
- * Why this approach?
- * - Security: Centralizes tenant verification so individual controllers don't have to reinvent the wheel or forget to check.
- * - Performance: Avoids relying on client-side state; the server explicitly verifies membership every time based on the JWT identity and requested tenant.
- * - UX/Security Balance: Throws ForbiddenError instead of leaking whether the business actually exists (prevents enumeration).
+ * @input
+ *   - req.user: TokenPayload (populated by upstream authMiddleware)
+ *   - req.headers['x-business-id']: string (UUID)
+ *
+ * @mutates
+ *   - req.tenant: { businessId: string, memberId: string, roleId: string, branchId?: string }
+ *
+ * @exits
+ *   - Calls `next()` if membership is verified in the database.
+ *   - Passes `UnauthorizedError` (401) to `next(error)` if `req.user` is missing.
+ *   - Passes `ValidationError` (400) to `next(error)` if `x-business-id` is missing or not a valid UUID.
+ *   - Passes `ForbiddenError` (403) to `next(error)` if user is not a member of this business.
  */
 export function createTenantMiddleware(businessRepository: IBusinessRepository) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {

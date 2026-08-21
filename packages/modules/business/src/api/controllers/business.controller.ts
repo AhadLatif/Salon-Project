@@ -1,5 +1,5 @@
 import type { TokenPayload } from '@salon/identity';
-import { UnauthorizedError, ValidationError } from '@salon/shared';
+import { getTenantContext, UnauthorizedError, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { CreateBusinessUseCase } from '../../application/use-cases/create-business.use-case.js';
 import type { GetBusinessByIdUseCase } from '../../application/use-cases/get-business-by-id.use-case.js';
@@ -26,21 +26,36 @@ export class BusinessController {
     private readonly updateBusinessUseCase: UpdateBusinessUseCase,
   ) {}
 
+  /**
+   * Bootstraps a new business tenant, creates the business member record,
+   * and assigns the creator the default System Owner role.
+   *
+   * @http POST /api/v1/businesses
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   * @body
+   *   - name: string (1-200 chars)
+   *   - slug: string (lowercase alphanumeric with hyphens)
+   *   - email: string (valid email)
+   *   - phoneNumber: string (E.164 format e.g. +1234567890)
+   *   - description?: string
+   *   - socialLinks?: Record<string, string>
+   *
+   * @flow
+   *   Client -> authMiddleware (verifies user JWT)
+   *          -> BusinessController.create
+   *          -> validateBody(createBusinessSchema)
+   *          -> CreateBusinessUseCase.execute
+   *          -> BusinessRepository.create (transaction: business + business_member + owner_role)
+   *
+   * @returns 201 Created { success: true, data: { business: { id, name, slug, ... } }, meta: {} }
+   * @throws 400 Bad Request (Validation failed)
+   * @throws 401 Unauthorized (Missing auth token)
+   * @throws 409 Conflict (Business slug already in use)
+   */
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parseResult = createBusinessSchema.safeParse(req.body);
-
-      if (!parseResult.success) {
-        const fieldErrors: Record<string, string> = {};
-        for (const issue of parseResult.error.issues) {
-          const fieldName = issue.path.join('.');
-          if (fieldName) {
-            fieldErrors[fieldName] = issue.message;
-          }
-        }
-
-        throw new ValidationError('Invalid business data', fieldErrors);
-      }
+      const data = validateBody(createBusinessSchema, req.body, 'Invalid business data');
 
       if (!req.user) {
         throw new UnauthorizedError('Authentication required');
@@ -49,12 +64,12 @@ export class BusinessController {
       const result = await this.createBusinessUseCase.execute({
         ownerUserId: req.user.userId,
         business: {
-          name: parseResult.data.name,
-          slug: parseResult.data.slug,
-          email: parseResult.data.email,
-          phoneNumber: parseResult.data.phoneNumber,
-          description: parseResult.data.description ?? null,
-          socialLinks: parseResult.data.socialLinks ?? null,
+          name: data.name,
+          slug: data.slug,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          description: data.description ?? null,
+          socialLinks: data.socialLinks ?? null,
         },
       });
 
@@ -70,6 +85,22 @@ export class BusinessController {
     }
   };
 
+  /**
+   * Returns all business tenants where the authenticated user is a member.
+   *
+   * @http GET /api/v1/businesses/me
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *
+   * @flow
+   *   Client -> authMiddleware
+   *          -> BusinessController.getMyBusinesses
+   *          -> GetMyBusinessesUseCase.execute(userId)
+   *          -> BusinessRepository.findAllByUserId
+   *
+   * @returns 200 OK { success: true, data: { businesses: [ ... ] }, meta: { total: number } }
+   * @throws 401 Unauthorized (Missing auth token)
+   */
   getMyBusinesses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
@@ -92,15 +123,32 @@ export class BusinessController {
     }
   };
 
+  /**
+   * Returns business tenant profile details.
+   *
+   * @http GET /api/v1/businesses/:businessId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID, verified against x-business-id to prevent IDOR)
+   *
+   * @flow
+   *   Client -> authMiddleware
+   *          -> tenantMiddleware (verifies membership in x-business-id)
+   *          -> BusinessController.getById
+   *          -> getTenantContext(req) (IDOR assertion)
+   *          -> GetBusinessByIdUseCase.execute(businessId)
+   *          -> BusinessRepository.findById
+   *
+   * @returns 200 OK { success: true, data: { business: { id, name, slug, ... } }, meta: {} }
+   * @throws 401 Unauthorized (Missing auth token)
+   * @throws 403 Forbidden (Cross-tenant IDOR / no membership in this business)
+   * @throws 404 Not Found (Business does not exist)
+   */
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const idParam = req.params.id;
-      const businessId = Array.isArray(idParam) ? idParam[0] : idParam;
-      if (!businessId) {
-        throw new ValidationError('Missing business ID parameter', {
-          id: 'Business ID is required',
-        });
-      }
+      const { businessId } = getTenantContext(req);
 
       const business = await this.getBusinessByIdUseCase.execute(businessId);
 
@@ -116,34 +164,42 @@ export class BusinessController {
     }
   };
 
+  /**
+   * Updates business tenant profile settings.
+   *
+   * @http PATCH /api/v1/businesses/:businessId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID, verified against x-business-id)
+   * @body
+   *   - name?: string
+   *   - email?: string
+   *   - phoneNumber?: string
+   *   - description?: string
+   *   - socialLinks?: Record<string, string>
+   *
+   * @flow
+   *   Client -> authMiddleware
+   *          -> tenantMiddleware
+   *          -> BusinessController.update
+   *          -> getTenantContext(req) (IDOR assertion)
+   *          -> validateBody(updateBusinessSchema)
+   *          -> UpdateBusinessUseCase.execute(businessId, data)
+   *          -> BusinessRepository.update
+   *
+   * @returns 200 OK { success: true, data: { business: { ... } }, meta: {} }
+   * @throws 400 Bad Request (Validation failed)
+   * @throws 403 Forbidden (Cross-tenant IDOR / no membership)
+   * @throws 404 Not Found (Business not found)
+   */
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const idParam = req.params.id;
-      const businessId = Array.isArray(idParam) ? idParam[0] : idParam;
-      if (!businessId) {
-        throw new ValidationError('Missing business ID parameter', {
-          id: 'Business ID is required',
-        });
-      }
+      const { businessId } = getTenantContext(req);
+      const data = validateBody(updateBusinessSchema, req.body, 'Invalid update business data');
 
-      const parseResult = updateBusinessSchema.safeParse(req.body);
-
-      if (!parseResult.success) {
-        const fieldErrors: Record<string, string> = {};
-        for (const issue of parseResult.error.issues) {
-          const fieldName = issue.path.join('.');
-          if (fieldName) {
-            fieldErrors[fieldName] = issue.message;
-          }
-        }
-
-        throw new ValidationError('Invalid update business data', fieldErrors);
-      }
-
-      const updatedBusiness = await this.updateBusinessUseCase.execute(
-        businessId,
-        parseResult.data,
-      );
+      const updatedBusiness = await this.updateBusinessUseCase.execute(businessId, data);
 
       res.status(200).json({
         success: true,

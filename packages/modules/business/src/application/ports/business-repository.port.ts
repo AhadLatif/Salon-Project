@@ -30,4 +30,5 @@ export interface IBusinessRepository {
   getUserBusinesses(userId: string): Promise<BusinessEntity[]>;
   createWithOwner(data: CreateBusinessWithOwnerData): Promise<BusinessEntity>;
   update(id: string, data: UpdateBusinessData): Promise<BusinessEntity | null>;
+  isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean>;
 }

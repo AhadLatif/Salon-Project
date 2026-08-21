@@ -142,6 +142,17 @@ export class BusinessRepository implements IBusinessRepository {
     } as BusinessProps);
   }
 
+  /**
+   * Bootstraps a new business tenant atomically inside a database transaction.
+   *
+   * Transaction Invariants:
+   * 1. Inserts the `businesses` row.
+   * 2. Inserts the system `Owner` role in `business_roles` (`isSystem: true`).
+   * 3. Inserts the creator's record in `business_members` linked to the owner role.
+   *
+   * If any step fails (e.g. unique slug collision), the entire transaction rolls back,
+   * guaranteeing no orphaned businesses or memberless tenants exist.
+   */
   async createWithOwner(data: CreateBusinessWithOwnerData): Promise<BusinessEntity> {
     const createdBusiness = await this.database.transaction(async (tx) => {
       // 1. Create the Business record
@@ -196,5 +207,21 @@ export class BusinessRepository implements IBusinessRepository {
       ...createdBusiness,
       ownerUserId: data.ownerUserId,
     } as BusinessProps);
+  }
+
+  /**
+   * Verifies that a business member ID exists and belongs to the given business workspace (tenant).
+   * Used for cross-module validation (e.g. Staff onboarding) to protect against IDOR.
+   */
+  async isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean> {
+    const member = await this.database.query.businessMembers.findFirst({
+      where: and(
+        eq(businessMembers.id, businessMemberId),
+        eq(businessMembers.businessId, businessId),
+      ),
+      columns: { id: true },
+    });
+
+    return Boolean(member);
   }
 }

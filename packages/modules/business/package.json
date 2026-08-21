@@ -22,17 +22,15 @@
     "@salon/typescript-config": "workspace:*",
     "@types/express": "^5.0.6",
     "typescript": "^6.0.3",
-    "vitest": "^3.0.5"
+    "vitest": "^3.2.7"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
-    "@salon/config": "workspace:*",
     "@salon/database": "workspace:*",
     "@salon/identity": "workspace:*",
     "@salon/shared": "workspace:*",
     "@salon/validation": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "express": "^5.2.1"
   }
 }
