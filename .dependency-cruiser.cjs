@@ -801,31 +801,157 @@ module.exports = {
 
     reporterOptions: {
       dot: {
-        // Pattern of modules to consolidate to. The default pattern in this configuration
-        // collapses everything in node_modules to one folder deep so you see
-        // the external modules, but not their innards.
         collapsePattern: 'node_modules/(?:@[^/]+/[^/]+|[^/]+)',
-
-        // Options to tweak the appearance of your graph. See
-        // https://github.com/sverweij/dependency-cruiser/blob/main/doc/options-reference.md#reporteroptions
-        // If you don't specify a theme dependency-cruiser falls back to a built-in one.
-        // theme: {
-        //   graph: {
-        //     // splines: 'ortho' - straight lines; slow on big graphs
-        //     // splines: 'true' - bezier curves; fast but not as nice as ortho
-        //     splines: 'true'
-        //   },
-        // },
+        theme: {
+          graph: {
+            bgcolor: '#0f172a',
+            color: '#334155',
+            fillcolor: '#1e293b',
+            fontcolor: '#f8fafc',
+            fontname: 'Helvetica-Bold',
+            fontsize: '11',
+            splines: 'ortho',
+            concentrate: true,
+            rankdir: 'TB',
+            nodesep: '0.4',
+            ranksep: '0.6',
+          },
+          node: {
+            shape: 'box',
+            style: 'rounded,filled',
+            color: '#475569',
+            fillcolor: '#1e293b',
+            fontcolor: '#f8fafc',
+            fontname: 'Helvetica-Bold',
+            fontsize: '10',
+            penwidth: '1.5',
+          },
+          edge: {
+            color: '#38bdf8aa',
+            fontcolor: '#94a3b8',
+            penwidth: '1.8',
+            arrowsize: '0.7',
+          },
+          modules: [
+            {
+              criteria: { source: '^apps/' },
+              attributes: {
+                fillcolor: '#1e3a8a',
+                color: '#60a5fa',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/modules/' },
+              attributes: {
+                fillcolor: '#064e3b',
+                color: '#34d399',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/infrastructure/' },
+              attributes: {
+                fillcolor: '#581c87',
+                color: '#c084fc',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/shared/' },
+              attributes: {
+                fillcolor: '#713f12',
+                color: '#facc15',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/testing/' },
+              attributes: {
+                fillcolor: '#701a75',
+                color: '#f472b6',
+                fontcolor: '#ffffff',
+              },
+            },
+          ],
+        },
       },
       archi: {
-        // Pattern of modules to consolidate to.
         collapsePattern:
           '^(?:packages|src|lib(s?)|app(s?)|bin|test(s?)|spec(s?))/[^/]+|node_modules/(?:@[^/]+/[^/]+|[^/]+)',
-
-        // Options to tweak the appearance of your graph. If you don't specify a
-        // theme for 'archi' dependency-cruiser will use the one specified in the
-        // dot section above and otherwise use the default one.
-        // theme: { },
+        theme: {
+          graph: {
+            bgcolor: '#0f172a',
+            color: '#334155',
+            fillcolor: '#1e293b',
+            fontcolor: '#f8fafc',
+            fontname: 'Helvetica-Bold',
+            fontsize: '11',
+            splines: 'ortho',
+            concentrate: true,
+            rankdir: 'TB',
+            nodesep: '0.5',
+            ranksep: '0.8',
+          },
+          node: {
+            shape: 'box',
+            style: 'rounded,filled',
+            color: '#475569',
+            fillcolor: '#1e293b',
+            fontcolor: '#f8fafc',
+            fontname: 'Helvetica-Bold',
+            fontsize: '10',
+            penwidth: '1.5',
+          },
+          edge: {
+            color: '#38bdf8aa',
+            fontcolor: '#94a3b8',
+            penwidth: '1.8',
+            arrowsize: '0.7',
+          },
+          modules: [
+            {
+              criteria: { source: '^apps/' },
+              attributes: {
+                fillcolor: '#1e3a8a',
+                color: '#60a5fa',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/modules/' },
+              attributes: {
+                fillcolor: '#064e3b',
+                color: '#34d399',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/infrastructure/' },
+              attributes: {
+                fillcolor: '#581c87',
+                color: '#c084fc',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/shared/' },
+              attributes: {
+                fillcolor: '#713f12',
+                color: '#facc15',
+                fontcolor: '#ffffff',
+              },
+            },
+            {
+              criteria: { source: '^packages/testing/' },
+              attributes: {
+                fillcolor: '#701a75',
+                color: '#f472b6',
+                fontcolor: '#ffffff',
+              },
+            },
+          ],
+        },
       },
       text: {
         highlightFocused: true,

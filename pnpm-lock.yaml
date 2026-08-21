@@ -290,9 +290,6 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^9.1.0
         version: 9.1.0(zod@4.4.3)
-      '@salon/config':
-        specifier: workspace:*
-        version: link:../../infrastructure/config
       '@salon/database':
         specifier: workspace:*
         version: link:../../infrastructure/database
@@ -311,9 +308,6 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
       '@salon/testing':
         specifier: workspace:*
@@ -328,7 +322,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
       vitest:
-        specifier: ^3.0.5
+        specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.13)(@types/node@26.0.1)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/modules/customer:
@@ -446,7 +440,7 @@ importers:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.20.0)(pg@8.22.0)
       express:
-        specifier: ^5.0.1
+        specifier: ^5.2.1
         version: 5.2.1
     devDependencies:
       '@salon/testing':
@@ -456,16 +450,16 @@ importers:
         specifier: workspace:*
         version: link:../../../configs/typescript-config
       '@types/express':
-        specifier: ^5.0.0
+        specifier: ^5.0.6
         version: 5.0.6
       '@types/node':
         specifier: ^22.13.1
         version: 22.20.1
       typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
+        specifier: ^6.0.3
+        version: 6.0.3
       vitest:
-        specifier: ^3.0.5
+        specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(tsx@4.23.1)(yaml@2.9.0)
 
   packages/modules/review:
@@ -498,6 +492,9 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
     devDependencies:
+      '@salon/branch':
+        specifier: workspace:*
+        version: link:../branch
       '@salon/testing':
         specifier: workspace:*
         version: link:../../testing
@@ -534,10 +531,13 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
+      '@salon/branch':
+        specifier: workspace:*
+        version: link:../branch
+      '@salon/business':
+        specifier: workspace:*
+        version: link:../business
       '@salon/testing':
         specifier: workspace:*
         version: link:../../testing
@@ -3274,11 +3274,6 @@ packages:
   type-is@2.1.0:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
-
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -6434,8 +6429,6 @@ snapshots:
       content-type: 2.0.0
       media-typer: 1.1.1
       mime-types: 3.0.2
-
-  typescript@5.9.3: {}
 
   typescript@6.0.3: {}
 

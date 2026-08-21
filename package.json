@@ -10,8 +10,9 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "test": "turbo test",
+    "test": "turbo test --concurrency=1",
     "test:watch": "vitest",
+
     "typecheck": "turbo typecheck",
     "format": "biome check --write .",
     "clean": "turbo run clean",
@@ -21,9 +22,18 @@
     "check": "turbo typecheck && biome check . && pnpm run depcruise",
     "depcruise": "depcruise --config .dependency-cruiser.cjs apps packages",
     "depcruise:watch": "depcruise --watch --config .dependency-cruiser.cjs apps packages",
-    "depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type html --output-to docs/architecture/architecture-report.html apps packages",
+    "depcruise:graph": "pnpm run depcruise:modules:dot && pnpm run depcruise:modules:svg && pnpm run depcruise:modules:png && pnpm run depcruise:dot && pnpm run depcruise:svg && pnpm run depcruise:png && pnpm run depcruise:interactive",
+    "depcruise:modules:dot": "depcruise --config .dependency-cruiser.cjs --output-type archi --collapse '^packages/(modules|infrastructure)/[^/]+' apps packages > docs/architecture/architecture-modules.dot",
+    "depcruise:modules:svg": "depcruise --config .dependency-cruiser.cjs --output-type archi --collapse '^packages/(modules|infrastructure)/[^/]+' apps packages | dot -Tsvg -o docs/architecture/architecture-modules.svg",
+    "depcruise:modules:png": "dot -Tpng docs/architecture/architecture-modules.dot -o docs/architecture/architecture-modules.png",
+    "depcruise:dot": "depcruise --config .dependency-cruiser.cjs --output-type dot apps packages > docs/architecture/architecture-detailed.dot",
+    "depcruise:svg": "depcruise --config .dependency-cruiser.cjs --output-type dot apps packages | dot -Tsvg -o docs/architecture/architecture-detailed.svg",
+    "depcruise:png": "dot -Tpng docs/architecture/architecture-detailed.dot -o docs/architecture/architecture-detailed.png",
+    "depcruise:interactive": "depcruise --config .dependency-cruiser.cjs --output-type x-dot-webpage -f docs/architecture/architecture-interactive.html apps packages",
+    "depcruise:focus": "depcruise --config .dependency-cruiser.cjs --output-type dot --focus \"^packages/modules/\" apps packages > docs/architecture/architecture-focus.dot",
     "depcruise:report": "depcruise --config .dependency-cruiser.cjs --output-type json --output-to depcruise.json apps packages"
   },
+
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
     "@types/node": "^26.0.1",
