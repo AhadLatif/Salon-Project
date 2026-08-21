@@ -200,6 +200,16 @@ export class BranchRepository implements IBranchRepository {
     });
   }
 
+  /**
+   * Replaces opening hours for a branch atomically using pessimistic locking.
+   *
+   * Transaction & Concurrency Invariants:
+   * 1. Acquires a pessimistic row-level lock (`FOR UPDATE`) on the target branch row
+   *    to serialize concurrent hour modifications for the same branch.
+   * 2. Deletes all existing `opening_hours` rows for this branch.
+   * 3. Batch inserts the new validated opening hour records.
+   * 4. Returns the reconstituted `BranchEntity` with new opening hours.
+   */
   async replaceOpeningHours(
     businessId: string,
     branchId: string,
@@ -208,6 +218,7 @@ export class BranchRepository implements IBranchRepository {
     return await this.database.transaction(async (tx) => {
       // 1. Verify branch exists and lock it for update to prevent concurrent modifications
       const [branch] = await tx
+
         .select()
         .from(branches)
         .where(
@@ -256,6 +267,23 @@ export class BranchRepository implements IBranchRepository {
       )
       .returning({ id: branches.id });
 
-    return !!deleted;
+    return Boolean(deleted);
+  }
+
+  /**
+   * Fast existence check: verifies that a branch exists, belongs to the specified business tenant,
+   * and is not archived (soft-deleted). Used across modules to prevent cross-tenant IDOR attacks.
+   */
+  async isBranchInBusiness(businessId: string, branchId: string): Promise<boolean> {
+    const branch = await this.database.query.branches.findFirst({
+      where: and(
+        eq(branches.id, branchId),
+        eq(branches.businessId, businessId),
+        ne(branches.status, 'archived'),
+      ),
+      columns: { id: true },
+    });
+
+    return Boolean(branch);
   }
 }

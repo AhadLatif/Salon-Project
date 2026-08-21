@@ -80,4 +80,10 @@ export interface IBranchRepository {
    * Archived branches are excluded from findById and findAllByBusinessId.
    */
   delete(businessId: string, branchId: string): Promise<boolean>;
+
+  /**
+   * Fast existence check: is this branch active (not archived) and owned by
+   * the given business tenant? Used by cross-module validators (Service, Staff, RBAC).
+   */
+  isBranchInBusiness(businessId: string, branchId: string): Promise<boolean>;
 }
