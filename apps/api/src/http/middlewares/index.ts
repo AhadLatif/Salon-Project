@@ -1,4 +1,3 @@
-// apps/api/src/http/middlewares/index.ts
 import { ResourceNotFoundError } from '@salon/shared';
 import type { Express } from 'express';
 import { globalErrorHandler } from './error-handler.js';

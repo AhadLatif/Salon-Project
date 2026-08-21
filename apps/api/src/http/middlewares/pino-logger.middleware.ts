@@ -4,22 +4,31 @@ import type { Request, Response } from 'express';
 import { type HttpLogger, pinoHttp } from 'pino-http';
 
 /**
- * @remarks A professional request logger must adhere to 5 rules:
+ * HTTP REQUEST LOGGING MIDDLEWARE (Pino-HTTP)
  *
- * 1. Silence Polling Noise: Never log routine health-check calls (GET /health).
- * 2. Dynamic Log Levels: 2xx/3xx requests log as info (or debug), 4xx as warn, and 5xx as error.
- * 3. Strict Redaction: Automatically strip passwords, authorization tokens, and credit card numbers from headers and bodies.
- * 4. Request Correlation ID: Assign a unique X-Request-ID to every HTTP request so you can trace a log entry directly to a specific user call.
- * 5. No Body Bloat: Never print raw request bodies unless explicitly necessary for debugging.
+ * Captures request latency, HTTP status codes, error details, and distributed trace IDs.
+ *
+ * @input Incoming HTTP Request
+ * @mutates
+ *   - Response Headers: sets `X-Request-ID` (UUID)
+ *   - Request Object: sets `req.id` (UUID)
+ * @exits Unconditionally calls `next()` to pass execution to subsequent route handlers
+ *
+ * Architecture Invariants:
+ * 1. Distributed Tracing: Forwards existing `x-request-id` header or generates a new UUID v4.
+ * 2. Noise Suppression: Silences `/health` polling to keep production log streams uncluttered.
+ * 3. Dynamic Log Levels: 2xx/3xx -> INFO, 4xx -> WARN, 5xx -> ERROR.
+ * 4. PII Redaction: Automatically masks passwords, refresh tokens, auth headers, and session cookies.
+ * 5. Sanitized URLs: Strips raw query strings from log lines to prevent accidental token/PII leakage.
  */
 
-/** Strip the query string from a URL to avoid leaking tokens/PII embedded in query params. */
+/** Strip query parameters from a URL string to prevent token/PII leakage in logs. */
 function stripQuery(url: string | undefined): string {
   return url?.split('?', 1)[0] ?? '';
 }
 
 export const httpLoggerMiddleware: HttpLogger<Request, Response> = pinoHttp({
-  // Reuse our existing pino instance from @salon/logger
+  // Reuse shared pino logger instance from @salon/logger
   logger,
 
   // 1. Generate or forward X-Request-ID for distributed tracing
