@@ -1,7 +1,9 @@
 import { ForbiddenError, UnauthorizedError, ValidationError } from '@salon/shared';
 import { z } from '@salon/validation';
 import type { NextFunction, Request, Response } from 'express';
+import type { IBranchValidator } from '../../application/ports/branch-validator.port.js';
 import type { IRbacRepository } from '../../application/ports/rbac-repository.port.js';
+import type { IStaffBranchAccessValidator } from '../../application/ports/staff-branch-access-validator.port.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -18,13 +20,31 @@ declare global {
 }
 
 /**
- * Middleware factory to enforce branch-level data isolation.
+ * BRANCH-LEVEL DATA ISOLATION & ACCESS CONTROL MIDDLEWARE FACTORY
  *
- * Preconditions:
- * 1. `authMiddleware` must run before to populate `req.user`.
- * 2. `tenantMiddleware` must run before to populate `req.tenant`.
+ * Enforces that the caller has access to the specific physical branch requested via `x-branch-id`.
+ * System Owners have implicit access to all branches within their business.
+ * Non-owner staff members must have an active assignment to the target branch.
+ *
+ * @input
+ *   - req.user: TokenPayload
+ *   - req.tenant: TenantContext
+ *   - req.headers['x-branch-id']: string (UUID)
+ *
+ * @mutates
+ *   - req.tenant.branchId: string (sets validated branch UUID)
+ *
+ * @exits
+ *   - Calls `next()` if branch access is verified.
+ *   - Passes `UnauthorizedError` (401) to `next(error)` if user is unauthenticated.
+ *   - Passes `ValidationError` (400) to `next(error)` if `x-branch-id` is missing or not a UUID.
+ *   - Passes `ForbiddenError` (403) to `next(error)` if branch does not belong to business or staff lacks assignment.
  */
-export function createRequireBranchContextMiddleware(rbacRepository: IRbacRepository) {
+export function createRequireBranchContextMiddleware(
+  rbacRepository: IRbacRepository,
+  branchValidator: IBranchValidator,
+  staffBranchValidator: IStaffBranchAccessValidator,
+) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
@@ -52,13 +72,21 @@ export function createRequireBranchContextMiddleware(rbacRepository: IRbacReposi
 
       const branchId = parseResult.data;
 
-      // Verify branch access
-      const hasAccess = await rbacRepository.hasBranchAccess(
-        req.tenant.roleId,
-        req.tenant.businessId,
-        req.tenant.memberId,
-        branchId,
-      );
+      // 1. Check if user holds the system 'Owner' role
+      const isOwner = await rbacRepository.isOwner(req.tenant.roleId, req.tenant.businessId);
+
+      let hasAccess = false;
+      if (isOwner) {
+        // System Owners have implicit access to any non-archived branch belonging to the business
+        hasAccess = await branchValidator.isBranchInBusiness(req.tenant.businessId, branchId);
+      } else {
+        // Non-owners must have an active staff profile assigned to the branch
+        hasAccess = await staffBranchValidator.hasStaffBranchAssignment(
+          req.tenant.businessId,
+          req.tenant.memberId,
+          branchId,
+        );
+      }
 
       if (!hasAccess) {
         throw new ForbiddenError(

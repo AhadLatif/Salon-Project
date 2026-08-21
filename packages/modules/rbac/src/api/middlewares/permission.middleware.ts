@@ -19,11 +19,20 @@ declare global {
 }
 
 /**
- * Middleware factory to enforce granular RBAC permissions.
+ * GRANULAR RBAC PERMISSION ENFORCEMENT MIDDLEWARE FACTORY
  *
- * Preconditions:
- * 1. `authMiddleware` must run before to populate `req.user`.
- * 2. `tenantMiddleware` must run before to populate `req.tenant`.
+ * Checks whether the caller's tenant role possesses the required permission code
+ * (or bypasses checks if the role is the System Owner).
+ *
+ * @input
+ *   - req.user: TokenPayload (populated by upstream authMiddleware)
+ *   - req.tenant: TenantContext (populated by upstream tenantMiddleware)
+ *   - permissionCode: string (e.g. 'staff.manage', 'service.create')
+ *
+ * @exits
+ *   - Calls `next()` if the user's role has the required permission or is System Owner.
+ *   - Passes `UnauthorizedError` (401) to `next(error)` if `req.user` is missing.
+ *   - Passes `ForbiddenError` (403) to `next(error)` if `req.tenant` is missing or permission is denied.
  */
 export function createRequirePermissionMiddleware(rbacRepository: IRbacRepository) {
   return (permissionCode: string) => {

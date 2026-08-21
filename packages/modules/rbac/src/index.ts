@@ -3,6 +3,8 @@ import { type RequestHandler, Router } from 'express';
 import { RbacController } from './api/controllers/rbac.controller.js';
 import { createRequireBranchContextMiddleware } from './api/middlewares/branch-context.middleware.js';
 import { createRequirePermissionMiddleware } from './api/middlewares/permission.middleware.js';
+import type { IBranchValidator } from './application/ports/branch-validator.port.js';
+import type { IStaffBranchAccessValidator } from './application/ports/staff-branch-access-validator.port.js';
 import { CreateCustomRoleUseCase } from './application/use-cases/create-custom-role.use-case.js';
 import { GetBusinessRolesUseCase } from './application/use-cases/get-business-roles.use-case.js';
 import { GetPermissionsCatalogUseCase } from './application/use-cases/get-permissions-catalog.use-case.js';
@@ -16,7 +18,9 @@ export * from './api/dtos/create-role.schema.js';
 export * from './api/dtos/update-role-permissions.schema.js';
 export * from './api/middlewares/branch-context.middleware.js';
 export * from './api/middlewares/permission.middleware.js';
+export * from './application/ports/branch-validator.port.js';
 export * from './application/ports/rbac-repository.port.js';
+export * from './application/ports/staff-branch-access-validator.port.js';
 export * from './application/use-cases/create-custom-role.use-case.js';
 export * from './application/use-cases/get-business-roles.use-case.js';
 export * from './application/use-cases/get-permissions-catalog.use-case.js';
@@ -28,6 +32,8 @@ export interface RbacModuleDependencies {
   database: typeof db;
   authMiddleware: RequestHandler;
   tenantMiddleware: RequestHandler;
+  branchValidator: IBranchValidator;
+  staffBranchValidator: IStaffBranchAccessValidator;
 }
 
 export interface RbacModule {
@@ -51,7 +57,11 @@ export function createRbacModule(deps: RbacModuleDependencies): RbacModule {
   const updateRolePermissionsUseCase = new UpdateRolePermissionsUseCase(rbacRepository);
 
   const requirePermission = createRequirePermissionMiddleware(rbacRepository);
-  const requireBranchContext = createRequireBranchContextMiddleware(rbacRepository);
+  const requireBranchContext = createRequireBranchContextMiddleware(
+    rbacRepository,
+    deps.branchValidator,
+    deps.staffBranchValidator,
+  );
 
   const rbacController = new RbacController(
     getPermissionsCatalogUseCase,

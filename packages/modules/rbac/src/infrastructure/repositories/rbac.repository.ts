@@ -1,14 +1,6 @@
-import {
-  branches,
-  businessRolePermissions,
-  businessRoles,
-  type db,
-  permissions,
-  staffBranchAssignments,
-  staffMembers,
-} from '@salon/database';
-import { OWNER_ROLE_NAME, ValidationError } from '@salon/shared';
-import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { businessRolePermissions, businessRoles, type db, permissions } from '@salon/database';
+import { handleUniqueConstraint, OWNER_ROLE_NAME, ValidationError } from '@salon/shared';
+import { and, eq, inArray } from 'drizzle-orm';
 import type {
   CreateRoleData,
   IRbacRepository,
@@ -72,61 +64,77 @@ export class RbacRepository implements IRbacRepository {
     );
   }
 
+  /**
+   * Creates a custom business role and links permission codes inside a single transaction.
+   *
+   * Transaction Invariants:
+   * 1. Inserts the `business_roles` record (`isSystem: false`).
+   * 2. Validates that all supplied `permissionCodes` exist in the master catalog.
+   * 3. Batch inserts mapping rows in `business_role_permissions`.
+   * 4. Automatically catches name collisions and maps them to a domain `ConflictError`.
+   */
   async createCustomRole(data: CreateRoleData): Promise<RoleEntity> {
-    return this.database.transaction(async (tx) => {
-      const [newRole] = await tx
-        .insert(businessRoles)
-        .values({
-          businessId: data.businessId,
-          name: data.name,
-          description: data.description,
-          isSystem: false,
-        })
-        .returning();
+    try {
+      return await this.database.transaction(async (tx) => {
+        const [newRole] = await tx
+          .insert(businessRoles)
+          .values({
+            businessId: data.businessId,
+            name: data.name,
+            description: data.description,
+            isSystem: false,
+          })
+          .returning();
 
-      if (!newRole) {
-        throw new Error('Failed to create role.');
-      }
-
-      const assignedPerms: string[] = [];
-
-      if (data.permissionCodes && data.permissionCodes.length > 0) {
-        const uniqueCodes = [...new Set(data.permissionCodes)];
-
-        const matchingPerms = await tx
-          .select({ id: permissions.id, code: permissions.code })
-          .from(permissions)
-          .where(inArray(permissions.code, uniqueCodes));
-
-        if (matchingPerms.length !== uniqueCodes.length) {
-          throw new ValidationError('Unknown permission codes provided.', {
-            permissions: 'One or more provided permission codes are invalid.',
-          });
+        if (!newRole) {
+          throw new Error('Failed to create role.');
         }
 
-        if (matchingPerms.length > 0) {
-          await tx.insert(businessRolePermissions).values(
-            matchingPerms.map((p) => ({
-              roleId: newRole.id,
-              permissionId: p.id,
-            })),
-          );
-          assignedPerms.push(...matchingPerms.map((p) => p.code));
-        }
-      }
+        const assignedPerms: string[] = [];
 
-      return new RoleEntity({
-        id: newRole.id,
-        businessId: newRole.businessId,
-        name: newRole.name,
-        description: newRole.description,
-        isSystem: newRole.isSystem,
-        displayOrder: newRole.displayOrder,
-        permissions: assignedPerms,
-        createdAt: newRole.createdAt,
-        updatedAt: newRole.updatedAt,
+        if (data.permissionCodes && data.permissionCodes.length > 0) {
+          const uniqueCodes = [...new Set(data.permissionCodes)];
+
+          const matchingPerms = await tx
+            .select({ id: permissions.id, code: permissions.code })
+            .from(permissions)
+            .where(inArray(permissions.code, uniqueCodes));
+
+          if (matchingPerms.length !== uniqueCodes.length) {
+            throw new ValidationError('Unknown permission codes provided.', {
+              permissions: 'One or more provided permission codes are invalid.',
+            });
+          }
+
+          if (matchingPerms.length > 0) {
+            await tx.insert(businessRolePermissions).values(
+              matchingPerms.map((p) => ({
+                roleId: newRole.id,
+                permissionId: p.id,
+              })),
+            );
+            assignedPerms.push(...matchingPerms.map((p) => p.code));
+          }
+        }
+
+        return new RoleEntity({
+          id: newRole.id,
+          businessId: newRole.businessId,
+          name: newRole.name,
+          description: newRole.description,
+          isSystem: newRole.isSystem,
+          displayOrder: newRole.displayOrder,
+          permissions: assignedPerms,
+          createdAt: newRole.createdAt,
+          updatedAt: newRole.updatedAt,
+        });
       });
-    });
+    } catch (error) {
+      handleUniqueConstraint(error, {
+        uq_business_roles_name: 'Role name already exists for this business.',
+        business_roles: 'Role name already exists for this business.',
+      });
+    }
   }
 
   async updateRolePermissions(
@@ -214,15 +222,14 @@ export class RbacRepository implements IRbacRepository {
       .where(and(eq(businessRolePermissions.roleId, roleId), eq(permissions.code, permissionCode)))
       .limit(1);
 
-    return !!match;
+    return Boolean(match);
   }
 
-  async hasBranchAccess(
-    roleId: string,
-    businessId: string,
-    businessMemberId: string,
-    branchId: string,
-  ): Promise<boolean> {
+  /**
+   * Checks whether the given role is the system 'Owner' role for this business.
+   * System owners bypass branch assignment checks (they have implicit access to all salon branches).
+   */
+  async isOwner(roleId: string, businessId: string): Promise<boolean> {
     const [role] = await this.database
       .select({
         isSystem: businessRoles.isSystem,
@@ -232,48 +239,6 @@ export class RbacRepository implements IRbacRepository {
       .where(and(eq(businessRoles.id, roleId), eq(businessRoles.businessId, businessId)))
       .limit(1);
 
-    // Owners have implicit access to all branches, provided the branch belongs to the business
-    if (role?.isSystem && role.name === OWNER_ROLE_NAME) {
-      const [branch] = await this.database
-        .select({ id: branches.id })
-        .from(branches)
-        .where(and(eq(branches.id, branchId), eq(branches.businessId, businessId)))
-        .limit(1);
-
-      if (branch) {
-        return true;
-      }
-    }
-
-    // Map businessMember to staffMember
-    const [staff] = await this.database
-      .select({ id: staffMembers.id })
-      .from(staffMembers)
-      .where(
-        and(
-          eq(staffMembers.businessId, businessId),
-          eq(staffMembers.businessMemberId, businessMemberId),
-          ne(staffMembers.status, 'terminated'),
-        ),
-      )
-      .limit(1);
-
-    if (!staff) return false;
-
-    // Verify active branch assignment
-    const [assignment] = await this.database
-      .select({ id: staffBranchAssignments.id })
-      .from(staffBranchAssignments)
-      .where(
-        and(
-          eq(staffBranchAssignments.businessId, businessId),
-          eq(staffBranchAssignments.staffMemberId, staff.id),
-          eq(staffBranchAssignments.branchId, branchId),
-          isNull(staffBranchAssignments.unassignedAt),
-        ),
-      )
-      .limit(1);
-
-    return !!assignment;
+    return Boolean(role?.isSystem && role.name === OWNER_ROLE_NAME);
   }
 }

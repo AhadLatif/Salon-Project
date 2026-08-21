@@ -25,10 +25,5 @@ export interface IRbacRepository {
     permissionCodes: string[],
   ): Promise<RoleEntity | null>;
   hasPermission(roleId: string, businessId: string, permissionCode: string): Promise<boolean>;
-  hasBranchAccess(
-    roleId: string,
-    businessId: string,
-    businessMemberId: string,
-    branchId: string,
-  ): Promise<boolean>;
+  isOwner(roleId: string, businessId: string): Promise<boolean>;
 }

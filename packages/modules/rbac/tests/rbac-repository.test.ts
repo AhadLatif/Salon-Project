@@ -1,11 +1,6 @@
 import { db } from '@salon/database';
 import { OWNER_ROLE_NAME } from '@salon/shared';
-import {
-  createTestBranch,
-  createTestBusiness,
-  createTestRole,
-  truncateAllTables,
-} from '@salon/testing';
+import { createTestBusiness, createTestRole, truncateAllTables } from '@salon/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RbacRepository } from '../src/infrastructure/repositories/rbac.repository.js';
 
@@ -64,27 +59,25 @@ describe('RbacRepository Integration Tests', () => {
     expect(roles[0]?.name).toBe('Manager');
   });
 
-  it('should return false for hasBranchAccess when owner attempts to use a branch from another business', async () => {
-    const business1 = await createTestBusiness(db);
-    const business2 = await createTestBusiness(db);
+  it('should return true for isOwner when role is System Owner and false otherwise', async () => {
+    const business = await createTestBusiness(db);
+    const otherBusiness = await createTestBusiness(db);
 
-    const ownerRole1 = await createTestRole(db, {
-      businessId: business1.id,
+    const ownerRole = await createTestRole(db, {
+      businessId: business.id,
       name: OWNER_ROLE_NAME,
       isSystem: true,
     });
 
-    const branch2 = await createTestBranch(db, {
-      businessId: business2.id,
-      name: 'Business 2 Branch',
+    const customRole = await repository.createCustomRole({
+      businessId: business.id,
+      name: 'Manager',
+      permissionCodes: [],
     });
 
-    const hasAccess = await repository.hasBranchAccess(
-      ownerRole1.id,
-      business1.id,
-      '123e4567-e89b-12d3-a456-426614174000',
-      branch2.id,
-    );
-    expect(hasAccess).toBe(false);
+    expect(await repository.isOwner(ownerRole.id, business.id)).toBe(true);
+    expect(await repository.isOwner(customRole.id, business.id)).toBe(false);
+    // Tenant isolation: Owner role from business 1 must return false for business 2
+    expect(await repository.isOwner(ownerRole.id, otherBusiness.id)).toBe(false);
   });
 });
