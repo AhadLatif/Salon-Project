@@ -49,7 +49,7 @@ export interface IServiceRepository {
   deactivate(businessId: string, serviceId: string): Promise<boolean>;
 
   // --- Validations ---
-  isBranchInBusiness(businessId: string, branchId: string): Promise<boolean>;
+  isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean>;
 
   // --- Branch Assignments ---
 

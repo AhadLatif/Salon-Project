@@ -1,5 +1,4 @@
-import { ForbiddenError, ValidationError } from '@salon/shared';
-import { z } from '@salon/validation';
+import { getTenantContext, getUuidParam, getUuidQuery, validateBody } from '@salon/shared';
 import type { Request, Response } from 'express';
 import type { AssignServiceToBranchUseCase } from '../../application/use-cases/assign-service-to-branch.use-case.js';
 import type { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case.js';
@@ -13,19 +12,6 @@ import { assignBranchSchema } from '../dtos/assign-branch.schema.js';
 import { createServiceSchema } from '../dtos/create-service.schema.js';
 import { updateServiceSchema } from '../dtos/update-service.schema.js';
 
-declare global {
-  namespace Express {
-    interface Request {
-      tenant?: {
-        businessId: string;
-        memberId: string;
-        roleId: string;
-        branchId?: string;
-      };
-    }
-  }
-}
-
 export class ServiceController {
   constructor(
     private readonly createServiceUseCase: CreateServiceUseCase,
@@ -38,44 +24,43 @@ export class ServiceController {
     private readonly getServiceBranchAssignmentsUseCase: GetServiceBranchAssignmentsUseCase,
   ) {}
 
-  private validateTenantConsistency(req: Request): string {
-    const routeBusinessId = (req.params as Record<string, string>).id;
-    const userBusinessId = req.tenant?.businessId;
-
-    if (!userBusinessId || routeBusinessId !== userBusinessId) {
-      throw new ForbiddenError('You do not have access to this business context');
-    }
-    return routeBusinessId;
-  }
-
-  private parseUuidParam(paramValue: string, paramName: string): string {
-    const uuidSchema = z.string().uuid();
-    const result = uuidSchema.safeParse(paramValue);
-    if (!result.success) {
-      throw new ValidationError(`Invalid ${paramName} format`);
-    }
-    return result.data;
-  }
-
-  private formatZodErrors(error: z.ZodError): Record<string, string> {
-    const fieldErrors: Record<string, string> = {};
-    for (const issue of error.issues) {
-      const fieldName = issue.path.join('.') || '_root';
-      fieldErrors[fieldName] = issue.message;
-    }
-    return fieldErrors;
-  }
-
+  /**
+   * Creates a new service offering in the tenant's service catalog.
+   *
+   * @http POST /api/v1/businesses/:businessId/services
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   * @body
+   *   - categoryId: string (UUID)
+   *   - name: string (1-150 chars)
+   *   - description?: string
+   *   - durationMinutes: number (1-1440, divisible by 5)
+   *   - price: string (decimal format e.g. "50.00")
+   *   - pricingType?: 'fixed' | 'from' | 'free' | 'varies'
+   *   - colorHex?: string (hex code e.g. "#FF00AA")
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('service.create')
+   *          -> ServiceController.createService
+   *          -> validateBody(createServiceSchema)
+   *          -> CreateServiceUseCase.execute
+   *          -> ServiceRepository.create
+   *
+   * @returns 201 Created { success: true, data: { service: { id, name, price, durationMinutes, ... } }, meta: {} }
+   * @throws 400 Bad Request (Validation failed / invalid duration interval)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / category belonging to another tenant)
+   * @throws 409 Conflict (Service name already exists in this business)
+   */
   createService = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-
-    const parseResult = createServiceSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      throw new ValidationError('Invalid service data', this.formatZodErrors(parseResult.error));
-    }
+    const { businessId } = getTenantContext(req);
+    const data = validateBody(createServiceSchema, req.body, 'Invalid service data');
 
     const service = await this.createServiceUseCase.execute({
-      ...parseResult.data,
+      ...data,
       businessId,
     });
 
@@ -86,9 +71,30 @@ export class ServiceController {
     });
   };
 
+  /**
+   * Returns details for a single service offering.
+   *
+   * @http GET /api/v1/businesses/:businessId/services/:serviceId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware
+   *          -> ServiceController.getServiceById
+   *          -> GetServiceByIdUseCase.execute(businessId, serviceId)
+   *          -> ServiceRepository.findById
+   *
+   * @returns 200 OK { success: true, data: { service: { ... } }, meta: {} }
+   * @throws 400 Bad Request (Invalid UUID)
+   * @throws 404 Not Found (Service not found)
+   */
   getServiceById = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
 
     const service = await this.getServiceByIdUseCase.execute(businessId, serviceId);
 
@@ -99,16 +105,36 @@ export class ServiceController {
     });
   };
 
+  /**
+   * Returns all services for the business tenant with optional category and status filtering.
+   *
+   * @http GET /api/v1/businesses/:businessId/services
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   * @query
+   *   - categoryId?: string (UUID)
+   *   - includeInactive?: 'true' | 'false'
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware
+   *          -> ServiceController.getServices
+   *          -> GetServicesUseCase.execute(businessId, options)
+   *          -> ServiceRepository.findAllByBusinessId
+   *
+   * @returns 200 OK { success: true, data: { services: [ ... ] }, meta: {} }
+   * @throws 400 Bad Request (Invalid categoryId UUID query param)
+   * @throws 401 Unauthorized
+   */
   getServices = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
+    const { businessId } = getTenantContext(req);
 
     // Parse query params for filtering
     const options: { categoryId?: string; includeInactive?: boolean } = {};
     if (req.query.categoryId) {
-      options.categoryId = this.parseUuidParam(
-        req.query.categoryId as string,
-        'categoryId query param',
-      );
+      options.categoryId = getUuidQuery(req, 'categoryId');
     }
     if (req.query.includeInactive === 'true') {
       options.includeInactive = true;
@@ -123,23 +149,36 @@ export class ServiceController {
     });
   };
 
+  /**
+   * Updates an existing service's catalog attributes.
+   *
+   * @http PATCH /api/v1/businesses/:businessId/services/:serviceId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   * @body
+   *   - Partial<UpdateServiceDto>
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('service.update')
+   *          -> ServiceController.updateService
+   *          -> validateBody(updateServiceSchema)
+   *          -> UpdateServiceUseCase.execute(businessId, serviceId, data)
+   *          -> ServiceRepository.update
+   *
+   * @returns 200 OK { success: true, data: { service: { ... } }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 404 Not Found
+   */
   updateService = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
+    const data = validateBody(updateServiceSchema, req.body, 'Invalid service update data');
 
-    const parseResult = updateServiceSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      throw new ValidationError(
-        'Invalid service update data',
-        this.formatZodErrors(parseResult.error),
-      );
-    }
-
-    const service = await this.updateServiceUseCase.execute(
-      businessId,
-      serviceId,
-      parseResult.data,
-    );
+    const service = await this.updateServiceUseCase.execute(businessId, serviceId, data);
 
     res.status(200).json({
       success: true,
@@ -148,9 +187,29 @@ export class ServiceController {
     });
   };
 
+  /**
+   * Deactivates (soft-disables) a service in the catalog.
+   *
+   * @http DELETE /api/v1/businesses/:businessId/services/:serviceId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('service.delete')
+   *          -> ServiceController.deactivateService
+   *          -> DeactivateServiceUseCase.execute(businessId, serviceId)
+   *          -> ServiceRepository.deactivate
+   *
+   * @returns 204 No Content
+   * @throws 404 Not Found
+   */
   deactivateService = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
 
     await this.deactivateServiceUseCase.execute(businessId, serviceId);
 
@@ -159,45 +218,105 @@ export class ServiceController {
 
   // --- Branch Assignments ---
 
+  /**
+   * Assigns a service offering to a specific branch in the salon network.
+   *
+   * @http POST /api/v1/businesses/:businessId/services/:serviceId/branches
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   * @body
+   *   - branchId: string (UUID)
+   *   - isBookable?: boolean
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('service.manage')
+   *          -> ServiceController.assignToBranch
+   *          -> validateBody(assignBranchSchema)
+   *          -> AssignServiceToBranchUseCase.execute
+   *          -> ServiceRepository.assignToBranch (upsert)
+   *
+   * @returns 201 Created { success: true, data: { branchId, serviceId }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 403 Forbidden (Branch or service belonging to another tenant)
+   * @throws 404 Not Found
+   */
   assignToBranch = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
-
-    const parseResult = assignBranchSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      throw new ValidationError(
-        'Invalid branch assignment data',
-        this.formatZodErrors(parseResult.error),
-      );
-    }
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
+    const data = validateBody(assignBranchSchema, req.body, 'Invalid branch assignment data');
 
     await this.assignServiceToBranchUseCase.execute(
       businessId,
       serviceId,
-      parseResult.data.branchId,
-      parseResult.data.isBookable,
+      data.branchId,
+      data.isBookable,
     );
 
     res.status(201).json({
       success: true,
-      data: { branchId: parseResult.data.branchId, serviceId },
+      data: { branchId: data.branchId, serviceId },
       meta: {},
     });
   };
 
+  /**
+   * Removes a service offering from a specific branch.
+   *
+   * @http DELETE /api/v1/businesses/:businessId/services/:serviceId/branches/:branchId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   *   - :branchId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('service.manage')
+   *          -> ServiceController.unassignFromBranch
+   *          -> UnassignServiceFromBranchUseCase.execute
+   *          -> ServiceRepository.unassignFromBranch
+   *
+   * @returns 204 No Content
+   * @throws 404 Not Found
+   */
   unassignFromBranch = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
-    const branchId = this.parseUuidParam(req.params.branchId as string, 'branchId');
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
+    const branchId = getUuidParam(req, 'branchId');
 
     await this.unassignServiceFromBranchUseCase.execute(businessId, serviceId, branchId);
 
     res.status(204).send();
   };
 
+  /**
+   * Returns all branch assignments for a service.
+   *
+   * @http GET /api/v1/businesses/:businessId/services/:serviceId/branches
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :serviceId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware
+   *          -> ServiceController.getBranchAssignments
+   *          -> GetServiceBranchAssignmentsUseCase.execute
+   *          -> ServiceRepository.getBranchAssignments
+   *
+   * @returns 200 OK { success: true, data: { assignments: [ ... ] }, meta: {} }
+   * @throws 404 Not Found
+   */
   getBranchAssignments = async (req: Request, res: Response): Promise<void> => {
-    const businessId = this.validateTenantConsistency(req);
-    const serviceId = this.parseUuidParam(req.params.serviceId as string, 'serviceId');
+    const { businessId } = getTenantContext(req);
+    const serviceId = getUuidParam(req, 'serviceId');
 
     const assignments = await this.getServiceBranchAssignmentsUseCase.execute(
       businessId,
@@ -206,7 +325,7 @@ export class ServiceController {
 
     res.status(200).json({
       success: true,
-      data: { serviceId, assignments },
+      data: { assignments },
       meta: {},
     });
   };

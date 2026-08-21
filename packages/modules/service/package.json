@@ -18,6 +18,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@salon/branch": "workspace:*",
     "@salon/typescript-config": "workspace:*",
     "@salon/testing": "workspace:*",
     "@types/express": "^5.0.6",

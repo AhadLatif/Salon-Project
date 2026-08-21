@@ -1,5 +1,5 @@
 import { type db, serviceCategories } from '@salon/database';
-import { ConflictError } from '@salon/shared';
+import { handleUniqueConstraint } from '@salon/shared';
 import { and, eq } from 'drizzle-orm';
 import type {
   CreateServiceCategoryData,
@@ -35,13 +35,13 @@ export class ServiceCategoryRepository implements IServiceCategoryRepository {
       }
 
       return this.toDomainEntity(newCategory);
-    } catch (error) {
-      const err = error as Error & { code?: string; constraint?: string };
-      // Handle unique constraint violation (uq_service_categories_business_name)
-      if (err.code === '23505' && err.constraint === 'uq_service_categories_business_name') {
-        throw new ConflictError('A category with this name already exists in your business.');
-      }
-      throw error;
+    } catch (error: unknown) {
+      handleUniqueConstraint(error, {
+        uq_service_categories_business_name:
+          'A category with this name already exists in your business.',
+        service_categories_business_id_name_unique:
+          'A category with this name already exists in your business.',
+      });
     }
   }
 
@@ -106,12 +106,13 @@ export class ServiceCategoryRepository implements IServiceCategoryRepository {
       if (!updatedCategory) return null;
 
       return this.toDomainEntity(updatedCategory);
-    } catch (error) {
-      const err = error as Error & { code?: string; constraint?: string };
-      if (err.code === '23505' && err.constraint === 'uq_service_categories_business_name') {
-        throw new ConflictError('A category with this name already exists in your business.');
-      }
-      throw error;
+    } catch (error: unknown) {
+      handleUniqueConstraint(error, {
+        uq_service_categories_business_name:
+          'A category with this name already exists in your business.',
+        service_categories_business_id_name_unique:
+          'A category with this name already exists in your business.',
+      });
     }
   }
 
@@ -124,6 +125,6 @@ export class ServiceCategoryRepository implements IServiceCategoryRepository {
       )
       .returning({ id: serviceCategories.id });
 
-    return !!deactivated;
+    return Boolean(deactivated);
   }
 }

@@ -1,3 +1,4 @@
+import { BranchRepository, BranchValidationService } from '@salon/branch';
 import { db } from '@salon/database';
 import { ConflictError, ForbiddenError } from '@salon/shared';
 import { createTestBranch, createTestBusiness, truncateAllTables } from '@salon/testing';
@@ -9,13 +10,16 @@ import { ServiceCategoryRepository } from '../src/infrastructure/repositories/se
 describe('AssignServiceToBranchUseCase Integration Tests', () => {
   let categoryRepo: ServiceCategoryRepository;
   let serviceRepo: ServiceRepository;
+  let branchValidator: BranchValidationService;
   let useCase: AssignServiceToBranchUseCase;
 
   beforeEach(async () => {
     await truncateAllTables(db);
     categoryRepo = new ServiceCategoryRepository(db);
     serviceRepo = new ServiceRepository(db);
-    useCase = new AssignServiceToBranchUseCase(serviceRepo);
+    const branchRepo = new BranchRepository(db);
+    branchValidator = new BranchValidationService(branchRepo);
+    useCase = new AssignServiceToBranchUseCase(serviceRepo, branchValidator);
   });
 
   it('should assign a service to a branch successfully', async () => {

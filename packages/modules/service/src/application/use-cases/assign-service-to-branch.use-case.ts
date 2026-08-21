@@ -1,8 +1,12 @@
 import { ConflictError, ForbiddenError } from '@salon/shared';
+import type { IBranchValidator } from '../ports/branch-validator.port.js';
 import type { IServiceRepository } from '../ports/service-repository.port.js';
 
 export class AssignServiceToBranchUseCase {
-  constructor(private readonly serviceRepository: IServiceRepository) {}
+  constructor(
+    private readonly serviceRepository: IServiceRepository,
+    private readonly branchValidator: IBranchValidator,
+  ) {}
 
   async execute(
     businessId: string,
@@ -10,8 +14,8 @@ export class AssignServiceToBranchUseCase {
     branchId: string,
     isBookable?: boolean,
   ): Promise<void> {
-    // 1. Validate branch exists and belongs to business
-    const isBranchValid = await this.serviceRepository.isBranchInBusiness(businessId, branchId);
+    // 1. Cross-tenant IDOR guard: Validate branch exists and belongs to this business
+    const isBranchValid = await this.branchValidator.isBranchInBusiness(businessId, branchId);
     if (!isBranchValid) {
       throw new ForbiddenError('Invalid branch ID or branch does not belong to this business');
     }

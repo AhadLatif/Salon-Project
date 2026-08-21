@@ -1,6 +1,6 @@
-import { branches, branchServices, type db, services } from '@salon/database';
-import { ConflictError } from '@salon/shared';
-import { and, eq, ne } from 'drizzle-orm';
+import { branchServices, type db, services } from '@salon/database';
+import { handleUniqueConstraint } from '@salon/shared';
+import { and, eq } from 'drizzle-orm';
 import type {
   CreateServiceData,
   IServiceRepository,
@@ -38,12 +38,12 @@ export class ServiceRepository implements IServiceRepository {
       }
 
       return this.toDomainEntity(newService);
-    } catch (error) {
-      const err = error as Error & { code?: string; constraint?: string };
-      if (err.code === '23505' && err.constraint === 'uq_services_business_name') {
-        throw new ConflictError('A service with this name already exists in your business.');
-      }
-      throw error;
+    } catch (error: unknown) {
+      handleUniqueConstraint(error, {
+        uq_services_business_name: 'A service with this name already exists in your business.',
+        services_business_id_name_unique:
+          'A service with this name already exists in your business.',
+      });
     }
   }
 
@@ -107,12 +107,12 @@ export class ServiceRepository implements IServiceRepository {
       if (!updatedService) return null;
 
       return this.toDomainEntity(updatedService);
-    } catch (error) {
-      const err = error as Error & { code?: string; constraint?: string };
-      if (err.code === '23505' && err.constraint === 'uq_services_business_name') {
-        throw new ConflictError('A service with this name already exists in your business.');
-      }
-      throw error;
+    } catch (error: unknown) {
+      handleUniqueConstraint(error, {
+        uq_services_business_name: 'A service with this name already exists in your business.',
+        services_business_id_name_unique:
+          'A service with this name already exists in your business.',
+      });
     }
   }
 
@@ -123,23 +123,33 @@ export class ServiceRepository implements IServiceRepository {
       .where(and(eq(services.id, serviceId), eq(services.businessId, businessId)))
       .returning({ id: services.id });
 
-    return !!deactivated;
+    return Boolean(deactivated);
   }
 
-  // --- Branch Assignments ---
-
-  async isBranchInBusiness(businessId: string, branchId: string): Promise<boolean> {
-    const branch = await this.database.query.branches.findFirst({
+  /**
+   * Validates that a service exists, belongs to the business tenant, and is active.
+   * Used for cross-module validation (e.g. Staff assigning services to staff members).
+   */
+  async isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean> {
+    const service = await this.database.query.services.findFirst({
       where: and(
-        eq(branches.id, branchId),
-        eq(branches.businessId, businessId),
-        ne(branches.status, 'archived'),
+        eq(services.id, serviceId),
+        eq(services.businessId, businessId),
+        eq(services.isActive, true),
       ),
       columns: { id: true },
     });
-    return !!branch;
+    return Boolean(service);
   }
 
+  /**
+   * Assigns a service to a branch idempotently using `ON CONFLICT DO NOTHING`.
+   *
+   * Database Invariant:
+   * The composite primary key `(branch_id, service_id)` ensures a service can only be mapped
+   * to a branch once. If the mapping already exists, `.onConflictDoNothing()` avoids throwing
+   * a collision error and returns `false` (0 inserted rows).
+   */
   async assignToBranch(
     businessId: string,
     serviceId: string,
@@ -147,6 +157,7 @@ export class ServiceRepository implements IServiceRepository {
     isBookable?: boolean,
   ): Promise<boolean> {
     const [inserted] = await this.database
+
       .insert(branchServices)
       .values({
         businessId,
@@ -159,7 +170,7 @@ export class ServiceRepository implements IServiceRepository {
       })
       .returning({ id: branchServices.id });
 
-    return !!inserted;
+    return Boolean(inserted);
   }
 
   async unassignFromBranch(
@@ -178,7 +189,7 @@ export class ServiceRepository implements IServiceRepository {
       )
       .returning({ id: branchServices.id });
 
-    return !!deleted;
+    return Boolean(deleted);
   }
 
   async getBranchAssignments(
