@@ -1,4 +1,5 @@
-import { ResourceNotFoundError, ValidationError } from '@salon/shared';
+import { ForbiddenError, ResourceNotFoundError, ValidationError } from '@salon/shared';
+import type { IBranchValidator } from '../ports/branch-validator.port.js';
 import type { IStaffRepository, StaffWorkSchedule } from '../ports/staff-repository.port.js';
 
 export interface CreateWorkScheduleData {
@@ -8,7 +9,10 @@ export interface CreateWorkScheduleData {
 }
 
 export class CreateStaffWorkScheduleUseCase {
-  constructor(private readonly staffRepository: IStaffRepository) {}
+  constructor(
+    private readonly staffRepository: IStaffRepository,
+    private readonly branchValidator: IBranchValidator,
+  ) {}
 
   async execute(
     businessId: string,
@@ -23,9 +27,9 @@ export class CreateStaffWorkScheduleUseCase {
     }
 
     // SECURITY: Verify the branch belongs to this business tenant to prevent IDOR
-    const branchExists = await this.staffRepository.isBranchInBusiness(businessId, branchId);
+    const branchExists = await this.branchValidator.isBranchInBusiness(businessId, branchId);
     if (!branchExists) {
-      throw new ResourceNotFoundError('Branch not found in this business');
+      throw new ForbiddenError('Invalid branch ID or branch does not belong to this business');
     }
 
     if (data.effectiveUntil && new Date(data.effectiveUntil) < new Date(data.effectiveFrom)) {

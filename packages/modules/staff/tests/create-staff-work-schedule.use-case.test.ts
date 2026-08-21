@@ -1,5 +1,6 @@
+import { BranchRepository, BranchValidationService } from '@salon/branch';
 import { db } from '@salon/database';
-import { ResourceNotFoundError } from '@salon/shared';
+import { ForbiddenError, ResourceNotFoundError } from '@salon/shared';
 import {
   createTestBranch,
   createTestBusiness,
@@ -12,12 +13,15 @@ import { StaffRepository } from '../src/infrastructure/repositories/staff.reposi
 
 describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
   let repo: StaffRepository;
+  let branchValidator: BranchValidationService;
   let useCase: CreateStaffWorkScheduleUseCase;
 
   beforeEach(async () => {
     await truncateAllTables(db);
     repo = new StaffRepository(db);
-    useCase = new CreateStaffWorkScheduleUseCase(repo);
+    const branchRepo = new BranchRepository(db);
+    branchValidator = new BranchValidationService(branchRepo);
+    useCase = new CreateStaffWorkScheduleUseCase(repo, branchValidator);
   });
 
   it('should successfully create a work schedule for a staff member', async () => {
@@ -52,7 +56,7 @@ describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
     ).rejects.toThrow(ResourceNotFoundError);
   });
 
-  it('should throw ResourceNotFoundError when branch does not belong to the business', async () => {
+  it('should throw ForbiddenError when branch does not belong to the business', async () => {
     const business = await createTestBusiness(db);
     const staff = await createTestStaffMember(db, { businessId: business.id });
     const otherBusiness = await createTestBusiness(db);
@@ -63,7 +67,7 @@ describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
         recurrencePattern: 'weekly',
         effectiveFrom: new Date('2025-01-01').toISOString(),
       }),
-    ).rejects.toThrow(ResourceNotFoundError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should enforce one open schedule per staff per branch (replace existing)', async () => {

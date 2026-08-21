@@ -1,4 +1,5 @@
 import { ForbiddenError, ResourceNotFoundError } from '@salon/shared';
+import type { IServiceValidator } from '../ports/service-validator.port.js';
 import type { IStaffRepository, StaffServiceAssignment } from '../ports/staff-repository.port.js';
 
 export interface AssignServiceToStaffData {
@@ -8,7 +9,10 @@ export interface AssignServiceToStaffData {
 }
 
 export class AssignServiceToStaffUseCase {
-  constructor(private readonly staffRepository: IStaffRepository) {}
+  constructor(
+    private readonly staffRepository: IStaffRepository,
+    private readonly serviceValidator: IServiceValidator,
+  ) {}
 
   async execute(
     businessId: string,
@@ -23,7 +27,7 @@ export class AssignServiceToStaffUseCase {
     }
 
     // 2. Cross-tenant service guard: serviceId must belong to this business and be active
-    const serviceValid = await this.staffRepository.isServiceInBusiness(businessId, serviceId);
+    const serviceValid = await this.serviceValidator.isServiceInBusiness(businessId, serviceId);
     if (!serviceValid) {
       throw new ForbiddenError('Invalid service ID or service does not belong to this business');
     }

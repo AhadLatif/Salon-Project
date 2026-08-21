@@ -1,13 +1,17 @@
 import { ForbiddenError } from '@salon/shared';
 import type { StaffMemberEntity } from '../../domain/entities/staff-member.entity.js';
+import type { IBusinessMemberValidator } from '../ports/business-member-validator.port.js';
 import type { CreateStaffMemberData, IStaffRepository } from '../ports/staff-repository.port.js';
 
 export class CreateStaffMemberUseCase {
-  constructor(private readonly staffRepository: IStaffRepository) {}
+  constructor(
+    private readonly staffRepository: IStaffRepository,
+    private readonly businessMemberValidator: IBusinessMemberValidator,
+  ) {}
 
   async execute(data: CreateStaffMemberData): Promise<StaffMemberEntity> {
     // Cross-tenant IDOR guard: the businessMemberId must belong to THIS business
-    const memberExists = await this.staffRepository.isBusinessMemberInBusiness(
+    const memberExists = await this.businessMemberValidator.isBusinessMemberInBusiness(
       data.businessId,
       data.businessMemberId,
     );

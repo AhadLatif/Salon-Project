@@ -1,15 +1,12 @@
 import {
-  branches,
-  businessMembers,
   type db,
-  services,
   staffBranchAssignments,
   staffMembers,
   staffScheduleShifts,
   staffServices,
   staffWorkSchedules,
 } from '@salon/database';
-import { ConflictError, ValidationError } from '@salon/shared';
+import { ConflictError, handleUniqueConstraint, ValidationError } from '@salon/shared';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import type {
   CreateStaffMemberData,
@@ -33,10 +30,22 @@ export class StaffRepository implements IStaffRepository {
   }
 
   /**
-   * Provisions a new Staff Profile.
-   * Traps unique constraint violations to guarantee a human user (businessMember)
-   * only ever has one active staff profile per salon.
+   * Maps a raw `staff_branch_assignments` row to the domain-facing assignment shape.
+   * Centralizes the mapping so the CAS branches in `assignToBranch` don't each
+   * hand-roll the same object literal (which was a source of drift).
    */
+  private toAssignment(row: typeof staffBranchAssignments.$inferSelect): StaffBranchAssignment {
+    return {
+      id: row.id,
+      businessId: row.businessId,
+      staffMemberId: row.staffMemberId,
+      branchId: row.branchId,
+      isPrimary: row.isPrimary,
+      assignedAt: row.assignedAt,
+      unassignedAt: row.unassignedAt,
+    };
+  }
+
   async create(data: CreateStaffMemberData): Promise<StaffMemberEntity> {
     try {
       const [newStaff] = await this.database
@@ -62,30 +71,11 @@ export class StaffRepository implements IStaffRepository {
 
       return this.toDomainEntity(newStaff);
     } catch (error: unknown) {
-      // Drizzle wraps postgres errors in DrizzleQueryError where the real postgres error is in error.cause
-      let dbErr:
-        | { code?: string; constraint?: string; constraint_name?: string; message?: string }
-        | undefined;
-
-      if (typeof error === 'object' && error !== null) {
-        const cause = 'cause' in error ? error.cause : undefined;
-        if (typeof cause === 'object' && cause !== null) {
-          dbErr = cause as typeof dbErr;
-        } else {
-          dbErr = error as typeof dbErr;
-        }
-      }
-
-      if (dbErr) {
-        const constraintName = dbErr.constraint || dbErr.constraint_name || '';
-        if (
-          dbErr.code === '23505' &&
-          (constraintName.includes('business_member') || dbErr.message?.includes('business_member'))
-        ) {
-          throw new ConflictError('This business member already has a staff profile.');
-        }
-      }
-      throw error;
+      handleUniqueConstraint(error, {
+        staff_members_business_member_id_unique:
+          'This business member already has a staff profile.',
+        business_member: 'This business member already has a staff profile.',
+      });
     }
   }
 
@@ -142,46 +132,47 @@ export class StaffRepository implements IStaffRepository {
       .where(and(eq(staffMembers.id, staffMemberId), eq(staffMembers.businessId, businessId)))
       .returning({ id: staffMembers.id });
 
-    return !!deactivated;
+    return Boolean(deactivated);
   }
 
-  // --- Security & Tenant Boundaries ---
-  // These fast existence-checks verify that nested resources (branches, services, schedules)
-  // actually belong to the authenticated business tenant to prevent Cross-Tenant IDOR attacks.
+  /**
+   * Checks whether a business member has an active (non-terminated) staff profile
+   * that is actively assigned to the given branch.
+   * Used for cross-module RBAC branch-level access control.
+   */
+  async hasStaffBranchAssignment(
+    businessId: string,
+    businessMemberId: string,
+    branchId: string,
+  ): Promise<boolean> {
+    const [staff] = await this.database
+      .select({ id: staffMembers.id })
+      .from(staffMembers)
+      .where(
+        and(
+          eq(staffMembers.businessId, businessId),
+          eq(staffMembers.businessMemberId, businessMemberId),
+          ne(staffMembers.status, 'terminated'),
+        ),
+      )
+      .limit(1);
 
-  async isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean> {
-    const member = await this.database.query.businessMembers.findFirst({
-      where: and(
-        eq(businessMembers.id, businessMemberId),
-        eq(businessMembers.businessId, businessId),
-      ),
-      columns: { id: true },
-    });
-    return !!member;
-  }
+    if (!staff) return false;
 
-  async isBranchInBusiness(businessId: string, branchId: string): Promise<boolean> {
-    const branch = await this.database.query.branches.findFirst({
-      where: and(
-        eq(branches.id, branchId),
-        eq(branches.businessId, businessId),
-        ne(branches.status, 'archived'),
-      ),
-      columns: { id: true },
-    });
-    return !!branch;
-  }
+    const [assignment] = await this.database
+      .select({ id: staffBranchAssignments.id })
+      .from(staffBranchAssignments)
+      .where(
+        and(
+          eq(staffBranchAssignments.businessId, businessId),
+          eq(staffBranchAssignments.staffMemberId, staff.id),
+          eq(staffBranchAssignments.branchId, branchId),
+          isNull(staffBranchAssignments.unassignedAt),
+        ),
+      )
+      .limit(1);
 
-  async isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean> {
-    const service = await this.database.query.services.findFirst({
-      where: and(
-        eq(services.id, serviceId),
-        eq(services.businessId, businessId),
-        eq(services.isActive, true),
-      ),
-      columns: { id: true },
-    });
-    return !!service;
+    return Boolean(assignment);
   }
 
   async isWorkScheduleInBusinessAndBranch(
@@ -197,7 +188,7 @@ export class StaffRepository implements IStaffRepository {
       ),
       columns: { id: true },
     });
-    return !!schedule;
+    return Boolean(schedule);
   }
 
   // --- Branch Assignments ---
@@ -256,6 +247,7 @@ export class StaffRepository implements IStaffRepository {
       });
 
       if (existing) {
+        // Active assignment: either promote it to primary, or reject the duplicate.
         if (existing.unassignedAt === null) {
           if (isPrimary && !existing.isPrimary) {
             const [promoted] = await tx
@@ -273,16 +265,9 @@ export class StaffRepository implements IStaffRepository {
               throw new Error('Concurrent modification detected: Assignment state changed.');
             }
 
-            return {
-              id: promoted.id,
-              businessId: promoted.businessId,
-              staffMemberId: promoted.staffMemberId,
-              branchId: promoted.branchId,
-              isPrimary: promoted.isPrimary,
-              assignedAt: promoted.assignedAt,
-              unassignedAt: promoted.unassignedAt,
-            };
+            return this.toAssignment(promoted);
           }
+
           throw new ConflictError('Staff member is already assigned to this branch.');
         }
 
@@ -306,15 +291,7 @@ export class StaffRepository implements IStaffRepository {
           throw new Error('Concurrent modification detected: Assignment state changed.');
         }
 
-        return {
-          id: reactivated.id,
-          businessId: reactivated.businessId,
-          staffMemberId: reactivated.staffMemberId,
-          branchId: reactivated.branchId,
-          isPrimary: reactivated.isPrimary,
-          assignedAt: reactivated.assignedAt,
-          unassignedAt: reactivated.unassignedAt,
-        };
+        return this.toAssignment(reactivated);
       }
 
       const [inserted] = await tx
@@ -324,22 +301,16 @@ export class StaffRepository implements IStaffRepository {
           staffMemberId,
           branchId,
           isPrimary,
+          assignedAt: new Date(),
+          unassignedAt: null,
         })
         .returning();
 
       if (!inserted) {
-        throw new Error('Failed to insert branch assignment.');
+        throw new Error('Failed to create branch assignment.');
       }
 
-      return {
-        id: inserted.id,
-        businessId: inserted.businessId,
-        staffMemberId: inserted.staffMemberId,
-        branchId: inserted.branchId,
-        isPrimary: inserted.isPrimary,
-        assignedAt: inserted.assignedAt,
-        unassignedAt: inserted.unassignedAt,
-      };
+      return this.toAssignment(inserted);
     });
   }
 
@@ -365,7 +336,7 @@ export class StaffRepository implements IStaffRepository {
       )
       .returning({ id: staffBranchAssignments.id });
 
-    return !!updated;
+    return Boolean(updated);
   }
 
   async getBranchAssignments(
@@ -454,7 +425,7 @@ export class StaffRepository implements IStaffRepository {
       )
       .returning({ id: staffServices.id });
 
-    return !!deleted;
+    return Boolean(deleted);
   }
 
   async getServiceAssignments(

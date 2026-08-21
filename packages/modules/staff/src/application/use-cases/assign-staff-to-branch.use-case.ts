@@ -1,8 +1,12 @@
 import { ForbiddenError, ResourceNotFoundError } from '@salon/shared';
+import type { IBranchValidator } from '../ports/branch-validator.port.js';
 import type { IStaffRepository, StaffBranchAssignment } from '../ports/staff-repository.port.js';
 
 export class AssignStaffToBranchUseCase {
-  constructor(private readonly staffRepository: IStaffRepository) {}
+  constructor(
+    private readonly staffRepository: IStaffRepository,
+    private readonly branchValidator: IBranchValidator,
+  ) {}
 
   async execute(
     businessId: string,
@@ -17,7 +21,7 @@ export class AssignStaffToBranchUseCase {
     }
 
     // 2. Cross-tenant branch guard: branchId must belong to this business and not be archived
-    const branchValid = await this.staffRepository.isBranchInBusiness(businessId, branchId);
+    const branchValid = await this.branchValidator.isBranchInBusiness(businessId, branchId);
     if (!branchValid) {
       throw new ForbiddenError('Invalid branch ID or branch does not belong to this business');
     }

@@ -1,5 +1,4 @@
-import { ForbiddenError, ValidationError } from '@salon/shared';
-import { z } from '@salon/validation';
+import { ForbiddenError, getTenantContext, getUuidParam, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { AddShiftToScheduleUseCase } from '../../application/use-cases/add-shift-to-schedule.use-case.js';
 import type { AssignServiceToStaffUseCase } from '../../application/use-cases/assign-service-to-staff.use-case.js';
@@ -18,50 +17,7 @@ import { assignServiceToStaffSchema } from '../dtos/assign-service-to-staff.sche
 import { assignStaffToBranchSchema } from '../dtos/assign-staff-to-branch.schema.js';
 import { createStaffMemberSchema } from '../dtos/create-staff-member.schema.js';
 import { createStaffWorkScheduleSchema } from '../dtos/create-staff-work-schedule.schema.js';
-
 import { updateStaffMemberSchema } from '../dtos/update-staff-member.schema.js';
-
-const uuidSchema = z.uuid();
-
-function parseUuidParam(value: string, paramName: string): string {
-  const result = uuidSchema.safeParse(value);
-  if (!result.success) {
-    throw new ValidationError(`Invalid ${paramName} format`, {
-      [paramName]: 'Must be a valid UUID.',
-    });
-  }
-  return result.data;
-}
-
-// SECURITY: IDOR Protection & Multi-Tenant Boundary
-// This helper extracts the cryptographically verified businessId from the JWT context (req.tenant).
-// It acts as an absolute isolation boundary. Even if an attacker forges a URL to access another
-// business's staff, this function ensures the token's tenant matches the requested URL parameters.
-function validateTenantConsistency(req: Request): string {
-  const businessIdFromTenant = req.tenant?.businessId;
-  if (!businessIdFromTenant) {
-    // Invariant: tenantMiddleware populates req.tenant for every staff route.
-    // Reaching here means the middleware chain is misconfigured, so fail as a 500.
-    throw new Error('Tenant context missing after tenant middleware.');
-  }
-
-  // If there's a businessId in params/query, it must mathematically match the verified tenant.
-  const businessIdFromPath = req.params.businessId;
-  if (businessIdFromPath && businessIdFromPath !== businessIdFromTenant) {
-    throw new ForbiddenError('Tenant context does not match the requested resource path.');
-  }
-
-  return businessIdFromTenant;
-}
-
-function formatZodErrors(issues: z.ZodIssue[]): Record<string, string> {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of issues) {
-    const fieldName = issue.path.join('.') || '_root';
-    fieldErrors[fieldName] = issue.message;
-  }
-  return fieldErrors;
-}
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -93,23 +49,50 @@ export class StaffMemberController {
     private readonly getStaffWorkSchedulesUseCase: GetStaffWorkSchedulesUseCase,
   ) {}
 
+  /**
+   * Onboards a new staff member profile linked to an existing business member.
+   *
+   * @http POST /api/v1/businesses/:businessId/staff
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   * @body
+   *   - businessMemberId: string (UUID, must belong to this business)
+   *   - displayName: string (1-200 chars)
+   *   - jobTitle?: string
+   *   - biography?: string
+   *   - employmentType?: 'full_time' | 'part_time' | 'contractor'
+   *   - hireDate?: 'YYYY-MM-DD' (valid calendar date)
+   *   - excludeFromAutoAssignment?: boolean
+   *   - languages?: string[]
+   *   - socialLinks?: Record<string, string>
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.create
+   *          -> validateBody(createStaffMemberSchema)
+   *          -> CreateStaffMemberUseCase.execute
+   *          -> BusinessValidationService (verifies businessMemberId belongs to businessId)
+   *          -> StaffRepository.create
+   *
+   * @returns 201 Created { success: true, data: { staff: { id, displayName, ... } }, meta: {} }
+   * @throws 400 Bad Request (Validation failure / impossible calendar date)
+   * @throws 403 Forbidden (Cross-tenant IDOR: member belongs to another business)
+   * @throws 409 Conflict (Staff profile already exists for this business member)
+   */
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
+      const { businessId } = getTenantContext(req);
+      const data = validateBody(
+        createStaffMemberSchema,
+        { ...req.body, businessId },
+        'Invalid staff member data',
+      );
 
-      const parseResult = createStaffMemberSchema.safeParse({
-        ...req.body,
-        businessId,
-      });
+      const staff = await this.createStaffMemberUseCase.execute(data);
 
-      if (!parseResult.success) {
-        throw new ValidationError(
-          'Invalid staff member data',
-          formatZodErrors(parseResult.error.issues),
-        );
-      }
-
-      const staff = await this.createStaffMemberUseCase.execute(parseResult.data);
       res.status(201).json({
         success: true,
         data: { staff },
@@ -121,9 +104,27 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Returns all active staff members in the business tenant.
+   *
+   * @http GET /api/v1/businesses/:businessId/staff
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware
+   *          -> StaffMemberController.findAll
+   *          -> GetStaffMembersUseCase.execute(businessId)
+   *          -> StaffRepository.findAllByBusinessId
+   *
+   * @returns 200 OK { success: true, data: { staff: [ ... ] }, meta: {} }
+   */
   async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
+      const { businessId } = getTenantContext(req);
       const staff = await this.getStaffMembersUseCase.execute(businessId);
       res.status(200).json({
         success: true,
@@ -136,10 +137,30 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Returns complete profile details for a specific staff member.
+   *
+   * @http GET /api/v1/businesses/:businessId/staff/:staffMemberId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware
+   *          -> StaffMemberController.findById
+   *          -> GetStaffMemberDetailsUseCase.execute(businessId, staffMemberId)
+   *          -> StaffRepository.findById
+   *
+   * @returns 200 OK { success: true, data: { staff: { ... } }, meta: {} }
+   * @throws 404 Not Found
+   */
   async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
 
       const staff = await this.getStaffMemberDetailsUseCase.execute(businessId, staffMemberId);
       res.status(200).json({
@@ -153,24 +174,37 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Updates staff member profile attributes.
+   *
+   * @http PATCH /api/v1/businesses/:businessId/staff/:staffMemberId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   * @body
+   *   - Partial<UpdateStaffMemberDto>
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.update
+   *          -> validateBody(updateStaffMemberSchema)
+   *          -> UpdateStaffMemberUseCase.execute(businessId, staffMemberId, data)
+   *          -> StaffRepository.update
+   *
+   * @returns 200 OK { success: true, data: { staff: { ... } }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 404 Not Found
+   */
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const data = validateBody(updateStaffMemberSchema, req.body, 'Invalid staff member data');
 
-      const parseResult = updateStaffMemberSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        throw new ValidationError(
-          'Invalid staff member data',
-          formatZodErrors(parseResult.error.issues),
-        );
-      }
-
-      const staff = await this.updateStaffMemberUseCase.execute(
-        businessId,
-        staffMemberId,
-        parseResult.data,
-      );
+      const staff = await this.updateStaffMemberUseCase.execute(businessId, staffMemberId, data);
       res.status(200).json({
         success: true,
         data: { staff },
@@ -182,10 +216,30 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Soft-terminates a staff member, marking status='terminated' and unassigning active services.
+   *
+   * @http DELETE /api/v1/businesses/:businessId/staff/:staffMemberId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.deactivate
+   *          -> DeactivateStaffMemberUseCase.execute(businessId, staffMemberId)
+   *          -> StaffRepository.softTerminate
+   *
+   * @returns 200 OK { success: true, data: null, meta: {} }
+   * @throws 404 Not Found
+   */
   async deactivate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
 
       await this.deactivateStaffMemberUseCase.execute(businessId, staffMemberId);
       res.status(200).json({
@@ -199,24 +253,46 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Assigns staff to a branch using atomic CAS primary branch switching.
+   *
+   * @http POST /api/v1/businesses/:businessId/staff/:staffMemberId/branches
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   * @body
+   *   - branchId: string (UUID)
+   *   - isPrimary?: boolean
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.assignToBranch
+   *          -> validateBody(assignStaffToBranchSchema)
+   *          -> AssignStaffToBranchUseCase.execute
+   *          -> StaffRepository.assignToBranch (atomic CAS transaction)
+   *
+   * @returns 201 Created { success: true, data: { assignment: { ... } }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 403 Forbidden (Cross-tenant branch or staff member)
+   */
   async assignToBranch(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
-
-      const parseResult = assignStaffToBranchSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        throw new ValidationError(
-          'Invalid branch assignment data',
-          formatZodErrors(parseResult.error.issues),
-        );
-      }
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const data = validateBody(
+        assignStaffToBranchSchema,
+        req.body,
+        'Invalid branch assignment data',
+      );
 
       const assignment = await this.assignStaffToBranchUseCase.execute(
         businessId,
         staffMemberId,
-        parseResult.data.branchId,
-        parseResult.data.isPrimary,
+        data.branchId,
+        data.isPrimary,
       );
       res.status(201).json({
         success: true,
@@ -229,11 +305,32 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Unassigns a staff member from a branch.
+   *
+   * @http DELETE /api/v1/businesses/:businessId/staff/:staffMemberId/branches/:branchId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   *   - :branchId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.unassignFromBranch
+   *          -> UnassignStaffFromBranchUseCase.execute
+   *          -> StaffRepository.unassignFromBranch
+   *
+   * @returns 200 OK { success: true, data: null, meta: {} }
+   * @throws 404 Not Found
+   */
   async unassignFromBranch(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
-      const branchId = parseUuidParam(req.params.branchId as string, 'branchId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const branchId = getUuidParam(req, 'branchId');
 
       await this.unassignStaffFromBranchUseCase.execute(businessId, staffMemberId, branchId);
       res.status(200).json({
@@ -247,27 +344,51 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Allocates a catalog service to a staff member with optional custom price/duration overrides.
+   *
+   * @http POST /api/v1/businesses/:businessId/staff/:staffMemberId/services
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   * @body
+   *   - serviceId: string (UUID)
+   *   - overridePrice?: string (decimal)
+   *   - overrideDurationMinutes?: number
+   *   - isBookable?: boolean
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.assignService
+   *          -> validateBody(assignServiceToStaffSchema)
+   *          -> AssignServiceToStaffUseCase.execute
+   *          -> StaffRepository.assignService
+   *
+   * @returns 201 Created { success: true, data: { assignment: { ... } }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 403 Forbidden (Cross-tenant service or staff member)
+   */
   async assignService(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
-
-      const parseResult = assignServiceToStaffSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        throw new ValidationError(
-          'Invalid service assignment data',
-          formatZodErrors(parseResult.error.issues),
-        );
-      }
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const data = validateBody(
+        assignServiceToStaffSchema,
+        req.body,
+        'Invalid service assignment data',
+      );
 
       const assignment = await this.assignServiceToStaffUseCase.execute(
         businessId,
         staffMemberId,
-        parseResult.data.serviceId,
+        data.serviceId,
         {
-          overridePrice: parseResult.data.overridePrice,
-          overrideDurationMinutes: parseResult.data.overrideDurationMinutes,
-          isBookable: parseResult.data.isBookable,
+          overridePrice: data.overridePrice,
+          overrideDurationMinutes: data.overrideDurationMinutes,
+          isBookable: data.isBookable,
         },
       );
       res.status(201).json({
@@ -281,11 +402,32 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Removes a service allocation from a staff member.
+   *
+   * @http DELETE /api/v1/businesses/:businessId/staff/:staffMemberId/services/:serviceId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   *   - :serviceId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.unassignService
+   *          -> UnassignServiceFromStaffUseCase.execute
+   *          -> StaffRepository.unassignService
+   *
+   * @returns 200 OK { success: true, data: null, meta: {} }
+   * @throws 404 Not Found
+   */
   async unassignService(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
-      const serviceId = parseUuidParam(req.params.serviceId as string, 'serviceId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const serviceId = getUuidParam(req, 'serviceId');
 
       await this.unassignServiceFromStaffUseCase.execute(businessId, staffMemberId, serviceId);
       res.status(200).json({
@@ -299,24 +441,48 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Creates a working schedule for a staff member at a specific branch.
+   *
+   * @http POST /api/v1/businesses/:businessId/staff/:staffMemberId/schedules
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID> (Branch context)
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   * @body
+   *   - effectiveFrom: 'YYYY-MM-DD'
+   *   - effectiveUntil?: 'YYYY-MM-DD'
+   *   - shifts?: Array<{ dayOfWeek: 0-6, startsAt: 'HH:mm', endsAt: 'HH:mm', isWorkingDay?: boolean }>
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> branchContextMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.createWorkSchedule
+   *          -> validateBody(createStaffWorkScheduleSchema)
+   *          -> CreateStaffWorkScheduleUseCase.execute
+   *          -> StaffRepository.createWorkSchedule (transaction: schedule + shifts)
+   *
+   * @returns 201 Created { success: true, data: { schedule: { ... } }, meta: {} }
+   * @throws 400 Bad Request
+   * @throws 403 Forbidden (Branch context mismatch)
+   */
   async createWorkSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
-
-      const parseResult = createStaffWorkScheduleSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        throw new ValidationError(
-          'Invalid work schedule data',
-          formatZodErrors(parseResult.error.issues),
-        );
-      }
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
+      const data = validateBody(
+        createStaffWorkScheduleSchema,
+        req.body,
+        'Invalid work schedule data',
+      );
 
       if (!req.tenant?.branchId) {
         throw new Error('Tenant branch context missing.');
       }
 
-      if ('branchId' in parseResult.data && parseResult.data.branchId !== req.tenant.branchId) {
+      if ('branchId' in data && data.branchId !== req.tenant.branchId) {
         throw new ForbiddenError(
           'Requested branch ID does not match the authorized branch context.',
         );
@@ -326,7 +492,7 @@ export class StaffMemberController {
         businessId,
         staffMemberId,
         req.tenant.branchId,
-        parseResult.data,
+        data,
       );
       res.status(201).json({
         success: true,
@@ -339,10 +505,30 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Returns all work schedules for a staff member at the active branch.
+   *
+   * @http GET /api/v1/businesses/:businessId/staff/:staffMemberId/schedules
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :staffMemberId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> branchContextMiddleware
+   *          -> StaffMemberController.getWorkSchedules
+   *          -> GetStaffWorkSchedulesUseCase.execute(businessId, staffMemberId, branchId)
+   *          -> StaffRepository.getWorkSchedules
+   *
+   * @returns 200 OK { success: true, data: { schedules: [ ... ] }, meta: {} }
+   */
   async getWorkSchedules(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-      const staffMemberId = parseUuidParam(req.params.staffMemberId as string, 'staffMemberId');
+      const { businessId } = getTenantContext(req);
+      const staffMemberId = getUuidParam(req, 'staffMemberId');
 
       if (!req.tenant?.branchId) {
         throw new Error('Tenant branch context missing.');
@@ -364,16 +550,39 @@ export class StaffMemberController {
     }
   }
 
+  /**
+   * Adds an individual shift to an existing work schedule.
+   *
+   * @http POST /api/v1/businesses/:businessId/staff/schedules/:workScheduleId/shifts
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :workScheduleId (UUID)
+   * @body
+   *   - dayOfWeek: 0-6 (0=Sunday)
+   *   - startsAt: 'HH:mm'
+   *   - endsAt: 'HH:mm'
+   *   - isWorkingDay?: boolean
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> branchContextMiddleware -> requirePermission('staff.manage')
+   *          -> StaffMemberController.addShiftToSchedule
+   *          -> validateBody(addShiftToScheduleSchema)
+   *          -> AddShiftToScheduleUseCase.execute
+   *          -> StaffRepository.addShiftToSchedule
+   *
+   * @returns 201 Created { success: true, data: { shift: { ... } }, meta: {} }
+   * @throws 400 Bad Request (Invalid time interval / startsAt >= endsAt)
+   * @throws 404 Not Found (Schedule not found)
+   */
   async addShiftToSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = validateTenantConsistency(req);
-
-      const workScheduleId = parseUuidParam(req.params.workScheduleId as string, 'workScheduleId');
-
-      const parseResult = addShiftToScheduleSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        throw new ValidationError('Invalid shift data', formatZodErrors(parseResult.error.issues));
-      }
+      const { businessId } = getTenantContext(req);
+      const workScheduleId = getUuidParam(req, 'workScheduleId');
+      const data = validateBody(addShiftToScheduleSchema, req.body, 'Invalid shift data');
 
       if (!req.tenant?.branchId) {
         throw new Error('Tenant branch context missing.');
@@ -383,8 +592,9 @@ export class StaffMemberController {
         businessId,
         req.tenant.branchId,
         workScheduleId,
-        parseResult.data,
+        data,
       );
+
       res.status(201).json({
         success: true,
         data: { shift },

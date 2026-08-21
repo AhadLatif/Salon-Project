@@ -1,6 +1,13 @@
 import type { db } from '@salon/database';
 import { type RequestHandler, Router } from 'express';
 import { StaffMemberController } from './api/controllers/staff-member.controller.js';
+import type { IBranchValidator } from './application/ports/branch-validator.port.js';
+import type { IBusinessMemberValidator } from './application/ports/business-member-validator.port.js';
+import type { IServiceValidator } from './application/ports/service-validator.port.js';
+import {
+  type IStaffQueryService,
+  StaffQueryService,
+} from './application/services/staff-query.service.js';
 import { AddShiftToScheduleUseCase } from './application/use-cases/add-shift-to-schedule.use-case.js';
 import { AssignServiceToStaffUseCase } from './application/use-cases/assign-service-to-staff.use-case.js';
 import { AssignStaffToBranchUseCase } from './application/use-cases/assign-staff-to-branch.use-case.js';
@@ -23,7 +30,11 @@ export * from './api/dtos/create-staff-member.schema.js';
 export * from './api/dtos/create-staff-work-schedule.schema.js';
 export * from './api/dtos/unassign-service-from-staff.schema.js';
 export * from './api/dtos/update-staff-member.schema.js';
+export * from './application/ports/branch-validator.port.js';
+export * from './application/ports/business-member-validator.port.js';
+export * from './application/ports/service-validator.port.js';
 export * from './application/ports/staff-repository.port.js';
+export * from './application/services/staff-query.service.js';
 export * from './domain/entities/staff-member.entity.js';
 export * from './infrastructure/repositories/staff.repository.js';
 
@@ -33,10 +44,14 @@ export interface StaffModuleDependencies {
   tenantMiddleware: RequestHandler;
   requirePermission: (permissionCode: string) => RequestHandler;
   requireBranchContext: RequestHandler;
+  branchValidator: IBranchValidator;
+  serviceValidator: IServiceValidator;
+  businessMemberValidator: IBusinessMemberValidator;
 }
 
 export interface StaffModule {
   staffRouter: Router;
+  staffQueryService: IStaffQueryService;
   useCases: {
     createStaffMemberUseCase: CreateStaffMemberUseCase;
     updateStaffMemberUseCase: UpdateStaffMemberUseCase;
@@ -55,17 +70,30 @@ export interface StaffModule {
 
 export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
   const staffRepository = new StaffRepository(deps.database);
+  const staffQueryService = new StaffQueryService(staffRepository);
 
-  const createStaffMemberUseCase = new CreateStaffMemberUseCase(staffRepository);
+  const createStaffMemberUseCase = new CreateStaffMemberUseCase(
+    staffRepository,
+    deps.businessMemberValidator,
+  );
   const updateStaffMemberUseCase = new UpdateStaffMemberUseCase(staffRepository);
   const deactivateStaffMemberUseCase = new DeactivateStaffMemberUseCase(staffRepository);
   const getStaffMemberDetailsUseCase = new GetStaffMemberDetailsUseCase(staffRepository);
   const getStaffMembersUseCase = new GetStaffMembersUseCase(staffRepository);
-  const assignStaffToBranchUseCase = new AssignStaffToBranchUseCase(staffRepository);
+  const assignStaffToBranchUseCase = new AssignStaffToBranchUseCase(
+    staffRepository,
+    deps.branchValidator,
+  );
   const unassignStaffFromBranchUseCase = new UnassignStaffFromBranchUseCase(staffRepository);
-  const assignServiceToStaffUseCase = new AssignServiceToStaffUseCase(staffRepository);
+  const assignServiceToStaffUseCase = new AssignServiceToStaffUseCase(
+    staffRepository,
+    deps.serviceValidator,
+  );
   const unassignServiceFromStaffUseCase = new UnassignServiceFromStaffUseCase(staffRepository);
-  const createStaffWorkScheduleUseCase = new CreateStaffWorkScheduleUseCase(staffRepository);
+  const createStaffWorkScheduleUseCase = new CreateStaffWorkScheduleUseCase(
+    staffRepository,
+    deps.branchValidator,
+  );
   const addShiftToScheduleUseCase = new AddShiftToScheduleUseCase(staffRepository);
   const getStaffWorkSchedulesUseCase = new GetStaffWorkSchedulesUseCase(staffRepository);
 
@@ -159,6 +187,7 @@ export function createStaffModule(deps: StaffModuleDependencies): StaffModule {
 
   return {
     staffRouter,
+    staffQueryService,
     useCases: {
       createStaffMemberUseCase,
       updateStaffMemberUseCase,

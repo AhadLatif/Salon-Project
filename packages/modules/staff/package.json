@@ -18,6 +18,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@salon/branch": "workspace:*",
+    "@salon/business": "workspace:*",
     "@salon/testing": "workspace:*",
     "@salon/typescript-config": "workspace:*",
     "@types/express": "^5.0.6",
@@ -30,7 +32,6 @@
     "@salon/shared": "workspace:*",
     "@salon/validation": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "express": "^5.2.1"
   }
 }

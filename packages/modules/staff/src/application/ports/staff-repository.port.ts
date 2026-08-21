@@ -84,13 +84,15 @@ export interface IStaffRepository {
     data: UpdateStaffMemberData,
   ): Promise<StaffMemberEntity | null>;
   deactivate(businessId: string, staffMemberId: string): Promise<boolean>;
-  isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean>;
-  isBranchInBusiness(businessId: string, branchId: string): Promise<boolean>;
-  isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean>;
   isWorkScheduleInBusinessAndBranch(
     businessId: string,
     branchId: string,
     workScheduleId: string,
+  ): Promise<boolean>;
+  hasStaffBranchAssignment(
+    businessId: string,
+    businessMemberId: string,
+    branchId: string,
   ): Promise<boolean>;
   assignToBranch(
     businessId: string,
