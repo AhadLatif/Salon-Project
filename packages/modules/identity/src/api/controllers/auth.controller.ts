@@ -1,4 +1,4 @@
-import { ValidationError } from '@salon/shared';
+import { validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { LoginUseCase } from '../../application/use-cases/login.use-case.js';
 import type { LogoutUseCase } from '../../application/use-cases/logout.use-case.js';
@@ -15,35 +15,44 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
   ) {}
 
-  // Controller has only these three tasks:
+  /**
+   * Registers a new platform user and issues an initial JWT session pair.
+   *
+   * @http POST /api/v1/auth/register
+   * @body
+   *   - firstName: string (1-100 chars)
+   *   - lastName: string (1-100 chars)
+   *   - email: string (valid email)
+   *   - password: string (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
+   *
+   * @flow
+   *   Client -> httpLoggerMiddleware -> express.json()
+   *          -> AuthController.register
+   *          -> validateBody(registerUserSchema)
+   *          -> RegisterUserUseCase.execute
+   *          -> UserRepository.create (checks email collision)
+   *          -> JwtService.generateTokenPair
+   *          -> SessionRepository.createSession
+   *
+   * @returns 201 Created { success: true, data: { user: { id, email, fullName }, tokens: { accessToken, refreshToken } }, meta: {} }
+   * @throws 400 Bad Request (Validation failed)
+   * @throws 409 Conflict (User with this email already exists)
+   */
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // 1. Parse the user raw data via zod
-      const parseResult = registerUserSchema.safeParse(req.body);
+      const { firstName, lastName, email, password } = validateBody(
+        registerUserSchema,
+        req.body,
+        'Invalid registration data',
+      );
 
-      if (!parseResult.success) {
-        const fieldErrors: Record<string, string> = {};
-        for (const issue of parseResult.error.issues) {
-          const fieldName = issue.path.join('.');
-          if (fieldName) {
-            fieldErrors[fieldName] = issue.message;
-          }
-        }
-
-        throw new ValidationError('Invalid registration data', fieldErrors);
-      }
-
-      const { firstName, lastName, email, password } = parseResult.data;
-
-      // 2. give that parsed data to the uscase to perform business and other operations
       const result = await this.registerUserUseCase.execute({
         firstName,
         lastName,
         email,
-        passwordPlainText: password, // deliberately mapping API → command
+        passwordPlainText: password,
       });
 
-      // 3. Respond back to the user
       res.status(201).json({
         success: true,
         data: {
@@ -64,24 +73,36 @@ export class AuthController {
     }
   };
 
-  // Login
+  /**
+   * Authenticates user credentials and creates a stateful session.
+   *
+   * @http POST /api/v1/auth/login
+   * @body
+   *   - email: string
+   *   - password: string
+   *   - deviceName?: string
+   *   - deviceType?: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+   *
+   * @flow
+   *   Client -> httpLoggerMiddleware -> express.json()
+   *          -> AuthController.login
+   *          -> validateBody(loginSchema)
+   *          -> LoginUseCase.execute (extracts IP & User-Agent from req)
+   *          -> UserRepository.findByEmail
+   *          -> BcryptService.compare (constant-time verification)
+   *          -> SessionRepository.createSession
+   *
+   * @returns 200 OK { success: true, data: { user: { id, email, fullName }, tokens: { accessToken, refreshToken } }, meta: {} }
+   * @throws 400 Bad Request (Malformed request body)
+   * @throws 401 Unauthorized (Invalid email or password)
+   */
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parseResult = loginSchema.safeParse(req.body);
-
-      if (!parseResult.success) {
-        const fieldErrors: Record<string, string> = {};
-        for (const issue of parseResult.error.issues) {
-          const fieldName = issue.path.join('.');
-          if (fieldName) {
-            fieldErrors[fieldName] = issue.message;
-          }
-        }
-
-        throw new ValidationError('Invalid login data', fieldErrors);
-      }
-
-      const { email, password, deviceName, deviceType } = parseResult.data;
+      const { email, password, deviceName, deviceType } = validateBody(
+        loginSchema,
+        req.body,
+        'Invalid login data',
+      );
 
       const result = await this.loginUseCase.execute({
         email,
@@ -112,18 +133,29 @@ export class AuthController {
     }
   };
 
-  // Refresh token use case is needed because we are using opaque refresh tokens and
-  // refresh token handling can be influenced by business logic, so we handle it in a use case.
+  /**
+   * Rotates opaque refresh token using atomic Compare-And-Swap (CAS).
+   *
+   * @http POST /api/v1/auth/refresh
+   * @body
+   *   - refreshToken: string (opaque raw token)
+   *
+   * @flow
+   *   Client -> AuthController.refresh
+   *          -> validateBody(refreshTokenSchema)
+   *          -> RefreshTokenUseCase.execute
+   *          -> SessionRepository.rotateRefreshToken (atomic CAS exchange of SHA-256 hashes)
+   *
+   * @returns 200 OK { success: true, data: { tokens: { accessToken, refreshToken } }, meta: {} }
+   * @throws 400 Bad Request (Invalid token format)
+   * @throws 401 Unauthorized (Token expired, revoked, or already rotated / reused)
+   */
   refresh = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parseResult = refreshTokenSchema.safeParse(req.body);
-
-      if (!parseResult.success) {
-        throw new ValidationError('Invalid refresh token');
-      }
+      const data = validateBody(refreshTokenSchema, req.body, 'Invalid refresh token');
 
       const result = await this.refreshTokenUseCase.execute({
-        refreshToken: parseResult.data.refreshToken,
+        refreshToken: data.refreshToken,
       });
 
       res.status(200).json({
@@ -141,17 +173,28 @@ export class AuthController {
     }
   };
 
-  // Logout
+  /**
+   * Invalidates a user session by revoking the refresh token hash.
+   *
+   * @http POST /api/v1/auth/logout
+   * @body
+   *   - refreshToken: string
+   *
+   * @flow
+   *   Client -> AuthController.logout
+   *          -> validateBody(logoutSchema)
+   *          -> LogoutUseCase.execute
+   *          -> SessionRepository.revokeSession
+   *
+   * @returns 200 OK { success: true, data: null, meta: {} }
+   * @throws 400 Bad Request (Missing token)
+   */
   logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parseResult = logoutSchema.safeParse(req.body);
-
-      if (!parseResult.success) {
-        throw new ValidationError('Invalid refresh token');
-      }
+      const data = validateBody(logoutSchema, req.body, 'Invalid refresh token');
 
       await this.logoutUseCase.execute({
-        refreshToken: parseResult.data.refreshToken,
+        refreshToken: data.refreshToken,
       });
 
       res.status(200).json({
@@ -164,10 +207,22 @@ export class AuthController {
     }
   };
 
-  // Protected route: returns the authenticated user's info
+  /**
+   * Returns authenticated user profile claims from the verified JWT access token.
+   *
+   * @http GET /api/v1/auth/me
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *
+   * @flow
+   *   Client -> authMiddleware (verifies JWT & attaches req.user)
+   *          -> AuthController.me
+   *
+   * @returns 200 OK { success: true, data: { user: { sub, email, ... } }, meta: {} }
+   * @throws 401 Unauthorized (Missing or expired Bearer token)
+   */
   me = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // req.user is set by the auth middleware
       res.status(200).json({
         success: true,
         data: {

@@ -13,14 +13,20 @@ declare global {
 }
 
 /**
- * Express middleware that authenticates a request by verifying the
- * `Authorization: Bearer <token>` header.
+ * AUTHENTICATION MIDDLEWARE FACTORY
  *
- * Per coding guidelines, all header parsing lives in the controller layer
- * (see `bearer-token.extractor.ts`). This middleware delegates to it and
- * only attaches `req.user` on success.
+ * Verifies JWT access token in the `Authorization: Bearer <token>` header,
+ * extracts decoded payload claims, and attaches `req.user`.
  *
- * On failure (missing/invalid/expired token), it forwards the error.
+ * @input
+ *   - req.headers.authorization: string ('Bearer <accessToken>')
+ *
+ * @mutates
+ *   - req.user: TokenPayload ({ sub: userId, email, tokenVersion })
+ *
+ * @exits
+ *   - Calls `next()` if access token is valid and unexpired.
+ *   - Passes `UnauthorizedError` (401) to `next(error)` if header is missing, malformed, or token has expired.
  */
 export function createAuthMiddleware(tokenService: ITokenService) {
   return (req: Request, _res: Response, next: NextFunction): void => {
