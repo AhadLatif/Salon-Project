@@ -6,6 +6,7 @@ export interface IStaffQueryService {
     businessMemberId: string,
     branchId: string,
   ): Promise<boolean>;
+  isStaffMemberActive(staffMemberId: string): Promise<boolean>;
 }
 
 /**
@@ -28,5 +29,12 @@ export class StaffQueryService implements IStaffQueryService {
       businessMemberId,
       branchId,
     );
+  }
+
+  /**
+   * Verifies that a staff member profile exists and is active.
+   */
+  async isStaffMemberActive(staffMemberId: string): Promise<boolean> {
+    return await this.staffRepository.isStaffMemberActive(staffMemberId);
   }
 }

@@ -1,0 +1,2 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
+CREATE INDEX "idx_bus_customers_search_trgm" ON "business_customers" USING gin ("first_name" gin_trgm_ops,"last_name" gin_trgm_ops,"email" gin_trgm_ops);

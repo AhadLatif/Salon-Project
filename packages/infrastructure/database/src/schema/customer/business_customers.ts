@@ -68,5 +68,19 @@ export const businessCustomers = pgTable(
     uniqueIndex('uq_bus_customers_email')
       .on(table.businessId, sql`lower(${table.email})`)
       .where(sql`${table.email} IS NOT NULL`),
+
+    // PREVENT CLONES: A B2C user can only be linked to ONE customer profile per
+    // business. Walk-in/guest rows keep userId NULL and remain unrestricted.
+    uniqueIndex('uq_bus_customers_user')
+      .on(table.businessId, table.userId)
+      .where(sql`${table.userId} IS NOT NULL`),
+
+    // Scalable CRM Search: GIN Trigram index for fuzzy ILIKE search on names & email
+    index('idx_bus_customers_search_trgm').using(
+      'gin',
+      sql`${table.firstName} gin_trgm_ops`,
+      sql`${table.lastName} gin_trgm_ops`,
+      sql`${table.email} gin_trgm_ops`,
+    ),
   ],
 );

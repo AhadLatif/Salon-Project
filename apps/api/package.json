@@ -34,6 +34,7 @@
     "@salon/branch": "workspace:*",
     "@salon/business": "workspace:*",
     "@salon/config": "workspace:*",
+    "@salon/customer": "workspace:*",
     "@salon/database": "workspace:*",
     "@salon/identity": "workspace:*",
     "@salon/rbac": "workspace:*",

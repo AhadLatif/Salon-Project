@@ -151,6 +151,12 @@ export const PERMISSION_CATALOG = [
     name: 'Update Customer',
     description: 'Allows editing customer profile and contact info.',
   },
+  {
+    code: 'customer.delete',
+    module: 'Customer',
+    name: 'Delete Customer',
+    description: 'Allows archiving customer profiles and deleting notes or tags.',
+  },
 ] as const satisfies readonly PermissionDefinition[];
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]['code'];

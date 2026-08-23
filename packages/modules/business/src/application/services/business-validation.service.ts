@@ -2,6 +2,7 @@ import type { IBusinessRepository } from '../ports/business-repository.port.js';
 
 export interface IBusinessValidationService {
   isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean>;
+  businessExists(businessId: string): Promise<boolean>;
 }
 
 /**
@@ -16,5 +17,13 @@ export class BusinessValidationService implements IBusinessValidationService {
    */
   async isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean> {
     return await this.businessRepository.isBusinessMemberInBusiness(businessId, businessMemberId);
+  }
+
+  /**
+   * Verifies that a business tenant exists.
+   */
+  async businessExists(businessId: string): Promise<boolean> {
+    const business = await this.businessRepository.findById(businessId);
+    return Boolean(business);
   }
 }

@@ -1,6 +1,7 @@
 import { createBranchModule, type IBranchValidationService } from '@salon/branch';
 import { createBusinessModule } from '@salon/business';
 import { config } from '@salon/config';
+import { createCustomerModule } from '@salon/customer';
 import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
 import {
@@ -24,11 +25,18 @@ import { registerHealthRoutes } from './health.route.js';
  * 4. Branch Module (Locations & Schedules)
  * 5. Service Module (Catalog & Branch Matrix)
  * 6. Staff Module (Profiles, Schedules & Allocations)
+ * 7. Customer Module (Tenant CRM, Notes, Tags & B2C Favorites)
  *
  * Circular Dependency Resolution:
  * Uses lazy forwarder adapters (e.g. `branchValidatorForRbac`, `staffBranchValidatorForRbac`)
  * to allow modules initialized earlier in the pipeline to call validation services from
  * modules initialized later without tight coupling.
+ *
+ * Cross-module validation convention:
+ * Modules receive the ACTUAL validation/query services of their dependencies (e.g.
+ * `branchModule.branchValidationService`, `serviceModule.serviceValidationService`).
+ * The consumer module declares a narrow port interface that the provider's service
+ * satisfies structurally — no hand-rolled adapter objects in this file.
  */
 export function initializeModules(app: Express): void {
   registerHealthRoutes(app);
@@ -98,7 +106,19 @@ export function initializeModules(app: Express): void {
   });
   staffQueryService = staffModule.staffQueryService;
 
-  // 7. Mount Module Routers onto API Pipeline (/api/v1)
+  // 7. Initialize Customer Module (CRM, Notes, Tags & Favorites)
+  // Cross-module validation delegates strictly to the provider modules' own
+  // validation/query services (structural typing satisfies the narrow ports).
+  const customerModule = createCustomerModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+    businessValidator: businessModule.businessValidationService,
+    staffValidator: staffModule.staffQueryService,
+  });
+
+  // 8. Mount Module Routers onto API Pipeline (/api/v1)
   const v1Router = Router();
 
   // SECURITY: Named `:businessId` (not `:id`) across all nested routers to enforce
@@ -109,6 +129,9 @@ export function initializeModules(app: Express): void {
   v1Router.use('/businesses/:businessId/branches', branchModule.branchRouter);
   v1Router.use('/businesses/:businessId/staff', staffModule.staffRouter);
   v1Router.use('/businesses/:businessId', serviceModule.serviceRouter);
+  v1Router.use('/businesses/:businessId/customers', customerModule.customerRouter);
+  v1Router.use('/businesses/:businessId/customer-tags', customerModule.customerTagRouter);
+  v1Router.use('/favorites', customerModule.favoriteRouter);
 
   app.use('/api/v1', v1Router);
 }

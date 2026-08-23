@@ -1,6 +1,7 @@
 export * from './config/vitest.config.js';
 export * from './factories/branch.factory.js';
 export * from './factories/business.factory.js';
+export * from './factories/customer.factory.js';
 export * from './factories/role.factory.js';
 export * from './factories/service.factory.js';
 export * from './factories/staff.factory.js';

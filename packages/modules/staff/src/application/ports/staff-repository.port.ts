@@ -77,6 +77,7 @@ export interface StaffMemberWithRelations extends StaffMemberProps {
 export interface IStaffRepository {
   create(data: CreateStaffMemberData): Promise<StaffMemberEntity>;
   findById(businessId: string, staffMemberId: string): Promise<StaffMemberEntity | null>;
+  isStaffMemberActive(staffMemberId: string): Promise<boolean>;
   findAllByBusinessId(businessId: string): Promise<StaffMemberEntity[]>;
   update(
     businessId: string,

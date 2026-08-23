@@ -93,6 +93,16 @@ export class StaffRepository implements IStaffRepository {
     return this.toDomainEntity(row);
   }
 
+  async isStaffMemberActive(staffMemberId: string): Promise<boolean> {
+    const [staff] = await this.database
+      .select({ id: staffMembers.id })
+      .from(staffMembers)
+      .where(and(eq(staffMembers.id, staffMemberId), eq(staffMembers.status, 'active')))
+      .limit(1);
+
+    return Boolean(staff);
+  }
+
   async findAllByBusinessId(businessId: string): Promise<StaffMemberEntity[]> {
     const rows = await this.database.query.staffMembers.findMany({
       where: and(eq(staffMembers.businessId, businessId), ne(staffMembers.status, 'terminated')),
