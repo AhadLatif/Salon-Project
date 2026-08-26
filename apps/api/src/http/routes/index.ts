@@ -82,6 +82,7 @@ export function initializeModules(app: Express): void {
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
   });
+  //Binding Moment : // We assign the real service to the variable we declared above.
   branchValidationService = branchModule.branchValidationService;
 
   // 5. Initialize Service Module (Service Catalog)
