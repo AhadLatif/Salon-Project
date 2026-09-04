@@ -1,6 +1,6 @@
 import { branchServices, type db, services } from '@salon/database';
 import { handleUniqueConstraint } from '@salon/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type {
   CreateServiceData,
   IServiceRepository,
@@ -65,6 +65,26 @@ export class ServiceRepository implements IServiceRepository {
     if (!row) return null;
 
     return this.toDomainEntity(row);
+  }
+
+  async findByIds(
+    businessId: string,
+    serviceIds: string[],
+    options?: { includeInactive?: boolean },
+  ): Promise<ServiceEntity[]> {
+    if (serviceIds.length === 0) return [];
+
+    const filters = [inArray(services.id, serviceIds), eq(services.businessId, businessId)];
+
+    if (!options?.includeInactive) {
+      filters.push(eq(services.isActive, true));
+    }
+
+    const rows = await this.database.query.services.findMany({
+      where: and(...filters),
+    });
+
+    return rows.map((row) => this.toDomainEntity(row));
   }
 
   async findAllByBusinessId(
@@ -204,5 +224,21 @@ export class ServiceRepository implements IServiceRepository {
     });
 
     return assignments.map((a) => ({ branchId: a.branchId, isBookable: a.isBookable }));
+  }
+
+  async isServiceBookableAtBranch(
+    businessId: string,
+    serviceId: string,
+    branchId: string,
+  ): Promise<boolean> {
+    const assignment = await this.database.query.branchServices.findFirst({
+      where: and(
+        eq(branchServices.businessId, businessId),
+        eq(branchServices.serviceId, serviceId),
+        eq(branchServices.branchId, branchId),
+      ),
+    });
+
+    return assignment ? assignment.isBookable : false;
   }
 }

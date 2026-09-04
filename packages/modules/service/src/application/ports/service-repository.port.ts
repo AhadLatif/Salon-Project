@@ -35,6 +35,12 @@ export interface IServiceRepository {
     options?: { includeInactive?: boolean },
   ): Promise<ServiceEntity | null>;
 
+  findByIds(
+    businessId: string,
+    serviceIds: string[],
+    options?: { includeInactive?: boolean },
+  ): Promise<ServiceEntity[]>;
+
   findAllByBusinessId(
     businessId: string,
     options?: { categoryId?: string; includeInactive?: boolean },
@@ -73,4 +79,13 @@ export interface IServiceRepository {
     businessId: string,
     serviceId: string,
   ): Promise<{ branchId: string; isBookable: boolean }[]>;
+
+  /**
+   * Verifies that a service is assigned to a branch and marked bookable.
+   */
+  isServiceBookableAtBranch(
+    businessId: string,
+    serviceId: string,
+    branchId: string,
+  ): Promise<boolean>;
 }
