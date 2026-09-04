@@ -17,14 +17,23 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run"
   },
 
   "dependencies": {
-    "@salon/customer": "workspace:*"
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@salon/database": "workspace:*",
+    "@salon/shared": "workspace:*",
+    "@salon/validation": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1"
   },
   "devDependencies": {
+    "@salon/testing": "workspace:*",
     "@salon/typescript-config": "workspace:*",
-    "typescript": "^6.0.3"
+    "@types/express": "^5.0.6",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.7"
   }
 }
