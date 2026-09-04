@@ -9,7 +9,8 @@ This repository separates four kinds of guidance:
 - `.agents/skills/` — specialized procedures used when a task matches a skill.
 - `.agents/workflows/` — explicit multi-step procedures for major activities such as building, testing, documenting a module.
 - `docs/` — project knowledge, research, decisions, module flows, history.
-- `docs/BUGS_REPORT.md` — bug log with the established format.
+- `docs/implementation/bug-reports/` — isolated daily bug reports and audit logs (`YYYY-MM-DD_<module>_audit.md`).
+- `docs/implementation/decisions/` — implementation learning and progression decision records (`DECISION-NNN-<Title>.md`).
 
 The agent should not assume every Markdown file in `docs/` is a skill. Skills live under `.agents/skills/<skill-name>/SKILL.md`.
 
@@ -24,7 +25,7 @@ When instructions conflict:
 4. A matching workflow controls that activity.
 5. A matching skill controls that specialized procedure.
 6. `docs/` provides project-specific knowledge and context.
-7. The `BUGS_REPORT.md` documents meaningful bugs and fixes.
+7. The `docs/implementation/bug-reports/` and `docs/implementation/decisions/` document meaningful bugs, post-mortems, and learnings.
 
 Do not silently ignore conflicts — state the conflict and apply the highest-priority rule.
 
@@ -107,7 +108,7 @@ packages/modules/<module-name>/src
   domain/
     entities/              # Domain entities
   infrastructure/
-    repos/                 # Drizzle implementation of ports
+    repositories/          # Drizzle implementation of ports
     services/               # Concrete services (JwtService, TokenBuilderService)
   index.ts                   # Module factory: wires everything, exports router + expose
 ```
@@ -126,7 +127,7 @@ Before implementing a module:
 Build modules following this order:
 
 1. **Define the PORT** (`application/ports/`)
-2. **Implement the REPOSITORY** (in `infrastructure/repos/`)
+2. **Implement the REPOSITORY** (in `infrastructure/repositories/`)
 3. **Write the USE CASE** in `application/use-cases/` (top-down, `execute()` reveals deps)
 4. **Create the CONTROLLER** in `api/controllers/`
 5. **Define the schemas** in `api/dtos/`
@@ -174,9 +175,11 @@ Each module is built deliberately and one logical module at a time.
 
 ### Phase 6 — Docs
 - Use `module-documentation` skill.
-- Write/update module *flow docs*.
-- Update `docs/BUGS_REPORT.md`.
-- Log the meaningful mistakes/fixes.
+- Write/update module *flow docs* (`docs/workflows/<module>/BUSINESS_WORKFLOW.md`, `TECHNICAL_ARCHITECTURE.md`).
+- Update `docs/workflows/INDEX.md`.
+- Create isolated daily bug report in `docs/implementation/bug-reports/YYYY-MM-DD_<module>_audit.md`.
+- Create implementation learning decision record in `docs/implementation/decisions/DECISION-NNN-<Title>.md`.
+- Update README indexes in both directories.
 
 ### Permission gate — Documentation
 After implementation + tests: **ASK the USER for Explicit permission** to create docs.
@@ -189,9 +192,22 @@ Only when explicitly permitted.
 ## 5. Architectural invariants (do not violate)
 
 - **`req.body` / request headers** ONLY in `apps/api/controllers`.
-- **SQL queries** live ONLY in `packages/infrastructure/database` (repos).
+- **SQL queries** live ONLY in `packages/infrastructure/database` or `packages/modules/*/infrastructure/repositories`.
 - **Business logic** ONLY in `packages/modules/*/application/use-cases`.
 - **Domain entities** ONLY in `packages/modules/*/domain/entities`.
+
+### Module Isolation & Database Boundaries (STRICT INVARIANT)
+- **A repository MUST ONLY query tables owned by its own module.**
+  - Under NO circumstances may a repository in `packages/modules/<module-A>/src/infrastructure/repositories/*` import or execute SQL queries (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `JOIN`) against database tables owned by `<module-B>`.
+  - Directly importing foreign tables (e.g. querying `services`, `staff_members`, `opening_hours` inside `appointment.repository.ts`) is strictly forbidden.
+- **Cross-module interactions MUST go through Domain Ports and Query Services.**
+  - When Module A requires data, snapshots, or validation from Module B:
+    1. Module A defines a domain/query port interface in `application/ports/` (e.g. `IServiceQueryPort`, `IStaffQueryPort`, `IBranchQueryPort`).
+    2. Module B implements and exports a query service fulfilling that contract (e.g. `StaffQueryService`, `CustomerQueryService`).
+    3. The application Use Case in Module A calls the port to retrieve snapshots/state BEFORE invoking its own repository.
+    4. Repositories in Module A only receive resolved DTOs and write solely to Module A's tables.
+    5. Wiring between modules is done strictly via Dependency Injection in `apps/api/src/http/routes/index.ts`.
+- **Precedent**: Follow the standard demonstrated in `@salon/customer` and `@salon/staff`.
 
 ### Error handling
 - **Client-facing errors** MUST extend `AppError` from `@salon/shared` (forbidden, unauthorized, etc.).
