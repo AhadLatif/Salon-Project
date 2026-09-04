@@ -7,6 +7,7 @@ import { businessMembers } from '../RBAC/business_members.js';
 import { services } from '../service/services.js';
 import { staffMembers } from '../staff/staff_members.js';
 import { appointmentNotes } from './appointment_notes.js';
+import { appointmentServiceAllocations } from './appointment_service_allocations.js';
 import { appointmentServices } from './appointment_services.js';
 import { appointmentStatusHistory } from './appointment_status_history.js';
 import { appointments } from './appointments.js';
@@ -43,11 +44,12 @@ export const appointmentsRelations = relations(appointments, ({ one, many }) => 
 
   // Downstream children
   services: many(appointmentServices),
+  allocations: many(appointmentServiceAllocations),
   statusHistory: many(appointmentStatusHistory),
   notes: many(appointmentNotes),
 }));
 
-export const appointmentServicesRelations = relations(appointmentServices, ({ one }) => ({
+export const appointmentServicesRelations = relations(appointmentServices, ({ one, many }) => ({
   business: one(businesses, {
     fields: [appointmentServices.businessId],
     references: [businesses.id],
@@ -61,7 +63,30 @@ export const appointmentServicesRelations = relations(appointmentServices, ({ on
     fields: [appointmentServices.staffMemberId],
     references: [staffMembers.id],
   }),
+  allocations: many(appointmentServiceAllocations),
 }));
+
+export const appointmentServiceAllocationsRelations = relations(
+  appointmentServiceAllocations,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [appointmentServiceAllocations.businessId],
+      references: [businesses.id],
+    }),
+    appointment: one(appointments, {
+      fields: [appointmentServiceAllocations.appointmentId],
+      references: [appointments.id],
+    }),
+    appointmentService: one(appointmentServices, {
+      fields: [appointmentServiceAllocations.appointmentServiceId],
+      references: [appointmentServices.id],
+    }),
+    staffMember: one(staffMembers, {
+      fields: [appointmentServiceAllocations.staffMemberId],
+      references: [staffMembers.id],
+    }),
+  }),
+);
 
 export const appointmentStatusHistoryRelations = relations(appointmentStatusHistory, ({ one }) => ({
   business: one(businesses, {

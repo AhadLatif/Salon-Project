@@ -8,6 +8,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -77,8 +78,17 @@ export const appointmentServices = pgTable(
 
     uniqueIndex('uq_appt_services_sequence').on(table.appointmentId, table.sequence),
 
+    // Tenant-tenant composite unique (ADR-009): lets child tables (e.g.
+    // appointment_service_allocations) reference (business_id, id) as a composite FK.
+    unique('uq_appt_services_tenant_id').on(table.businessId, table.id),
+
     check('chk_appt_services_price', sql`${table.unitPrice} >= 0`),
     check('chk_appt_services_duration', sql`${table.durationMinutes} > 0`),
     check('chk_appt_services_schedule', sql`${table.endsAt} > ${table.startsAt}`),
+    check('chk_appt_services_processing_time', sql`${table.processingTimeMinutes} >= 0`),
+    check('chk_appt_services_extra_time', sql`${table.extraTimeMinutes} >= 0`),
+    check('chk_appt_services_buffer_before', sql`${table.bufferBeforeMinutes} >= 0`),
+    check('chk_appt_services_buffer_after', sql`${table.bufferAfterMinutes} >= 0`),
+    check('chk_appt_services_sequence', sql`${table.sequence} >= 1`),
   ],
 );

@@ -18,15 +18,18 @@
 
     "db:generate": "node scripts/generate.mjs",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:test": "DATABASE_URL=${TEST_DATABASE_URL:-postgres://salon_admin:super_secret_password_123@127.0.0.1:5432/salon_test} drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:drop": "drizzle-kit drop",
-    "seed:permissions": "NODE_ENV=development tsx --env-file=../../../.env src/seed/seed-permissions.ts"
+    "seed:permissions": "NODE_ENV=development tsx --env-file=../../../.env src/seed/seed-permissions.ts",
+    "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@salon/typescript-config": "workspace:*",
     "@types/pg": "^8.20.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^3.0.5"
   },
   "dependencies": {
     "@salon/config": "workspace:*",

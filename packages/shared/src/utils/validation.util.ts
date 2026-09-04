@@ -122,3 +122,22 @@ export function validateBody<T>(
 
   return parseResult.data;
 }
+
+/**
+ * Synchronously validates and transforms an Express `req.query` payload with a Zod schema.
+ * Throws a formatted `ValidationError` (400) if validation fails.
+ * Returns strongly-typed parsed output data.
+ */
+export function validateQuery<T>(
+  schema: ZodSchemaLike<T>,
+  query: unknown,
+  errorMessage = 'Invalid query parameters',
+): T {
+  const parseResult = schema.safeParse(query);
+
+  if (!parseResult.success) {
+    throw new ValidationError(errorMessage, formatZodErrors(parseResult.error));
+  }
+
+  return parseResult.data;
+}

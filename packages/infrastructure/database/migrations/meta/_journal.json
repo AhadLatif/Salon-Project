@@ -57,6 +57,13 @@
       "when": 1787488207424,
       "tag": "0007_enforce_customer_tenant_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788337197740,
+      "tag": "0008_add_appointment_service_allocations",
+      "breakpoints": true
     }
   ]
 }
