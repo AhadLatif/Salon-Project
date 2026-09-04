@@ -1,4 +1,5 @@
 import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
+import { appointmentOpenApiRegistry } from '@salon/appointment';
 import { branchOpenApiRegistry } from '@salon/branch';
 import { businessOpenApiRegistry } from '@salon/business';
 import { customerOpenApiRegistry } from '@salon/customer';
@@ -21,6 +22,7 @@ export function createDocsRouter(): Router {
     ...serviceOpenApiRegistry.definitions,
     ...staffOpenApiRegistry.definitions,
     ...customerOpenApiRegistry.definitions,
+    ...appointmentOpenApiRegistry.definitions,
   ]);
 
   // 2. Build the unified OpenAPI Specification document

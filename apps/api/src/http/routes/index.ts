@@ -1,3 +1,4 @@
+import { createAppointmentModule } from '@salon/appointment';
 import { createBranchModule, type IBranchValidationService } from '@salon/branch';
 import { createBusinessModule } from '@salon/business';
 import { config } from '@salon/config';
@@ -119,7 +120,21 @@ export function initializeModules(app: Express): void {
     staffValidator: staffModule.staffQueryService,
   });
 
-  // 8. Mount Module Routers onto API Pipeline (/api/v1)
+  // 8. Initialize Appointment Module (Booking Engine & Allocations)
+  const appointmentModule = createAppointmentModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+    requireBranchContext: rbacModule.requireBranchContext,
+    branchValidator: branchModule.branchValidationService,
+    businessMemberValidator: businessModule.businessValidationService,
+    customerValidator: customerModule.customerQueryService,
+    serviceValidator: serviceModule.serviceValidationService,
+    staffValidator: staffModule.staffQueryService,
+  });
+
+  // 9. Mount Module Routers onto API Pipeline (/api/v1)
   const v1Router = Router();
 
   // SECURITY: Named `:businessId` (not `:id`) across all nested routers to enforce
@@ -132,6 +147,7 @@ export function initializeModules(app: Express): void {
   v1Router.use('/businesses/:businessId', serviceModule.serviceRouter);
   v1Router.use('/businesses/:businessId/customers', customerModule.customerRouter);
   v1Router.use('/businesses/:businessId/customer-tags', customerModule.customerTagRouter);
+  v1Router.use('/businesses/:businessId/appointments', appointmentModule.appointmentRouter);
   v1Router.use('/favorites', customerModule.favoriteRouter);
 
   app.use('/api/v1', v1Router);
