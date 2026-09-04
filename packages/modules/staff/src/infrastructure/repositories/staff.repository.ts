@@ -4,14 +4,17 @@ import {
   staffMembers,
   staffScheduleShifts,
   staffServices,
+  staffTimeOff,
   staffWorkSchedules,
 } from '@salon/database';
 import { ConflictError, handleUniqueConstraint, ValidationError } from '@salon/shared';
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
 import type {
   CreateStaffMemberData,
   IStaffRepository,
+  StaffBookingSnapshot,
   StaffBranchAssignment,
+  StaffScheduleCandidate,
   StaffScheduleShift,
   StaffServiceAssignment,
   StaffWorkSchedule,
@@ -21,6 +24,7 @@ import {
   StaffMemberEntity,
   type StaffMemberProps,
 } from '../../domain/entities/staff-member.entity.js';
+import { isScheduleActiveOnDate } from '../../domain/services/schedule-recurrence.js';
 
 export class StaffRepository implements IStaffRepository {
   constructor(private readonly database: typeof db) {}
@@ -93,11 +97,24 @@ export class StaffRepository implements IStaffRepository {
     return this.toDomainEntity(row);
   }
 
-  async isStaffMemberActive(staffMemberId: string): Promise<boolean> {
+  async isStaffMemberActive(businessId: string, staffMemberId: string): Promise<boolean>;
+  async isStaffMemberActive(staffMemberId: string): Promise<boolean>;
+  async isStaffMemberActive(
+    businessIdOrStaffId: string,
+    maybeStaffMemberId?: string,
+  ): Promise<boolean> {
+    const businessId = maybeStaffMemberId ? businessIdOrStaffId : undefined;
+    const staffMemberId = maybeStaffMemberId ?? businessIdOrStaffId;
+
+    const conditions = [eq(staffMembers.id, staffMemberId), eq(staffMembers.status, 'active')];
+    if (businessId) {
+      conditions.push(eq(staffMembers.businessId, businessId));
+    }
+
     const [staff] = await this.database
       .select({ id: staffMembers.id })
       .from(staffMembers)
-      .where(and(eq(staffMembers.id, staffMemberId), eq(staffMembers.status, 'active')))
+      .where(and(...conditions))
       .limit(1);
 
     return Boolean(staff);
@@ -601,5 +618,186 @@ export class StaffRepository implements IStaffRepository {
         endsAt: sh.endsAt,
       })),
     }));
+  }
+
+  async getStaffBookingSnapshots(
+    businessId: string,
+    requests: { staffMemberId: string; serviceId: string }[],
+  ): Promise<StaffBookingSnapshot[]> {
+    if (requests.length === 0) return [];
+    const staffIds = Array.from(new Set(requests.map((r) => r.staffMemberId)));
+    const staffRows = await this.database.query.staffMembers.findMany({
+      where: and(inArray(staffMembers.id, staffIds), eq(staffMembers.businessId, businessId)),
+    });
+    const staffMap = new Map(
+      staffRows.map((s) => [s.id, { displayName: s.displayName, isActive: s.status === 'active' }]),
+    );
+
+    const serviceAssignments = await this.database.query.staffServices.findMany({
+      where: and(
+        inArray(staffServices.staffMemberId, staffIds),
+        eq(staffServices.businessId, businessId),
+      ),
+    });
+    const assignmentMap = new Map<string, (typeof serviceAssignments)[0]>();
+    for (const a of serviceAssignments) {
+      assignmentMap.set(`${a.staffMemberId}:${a.serviceId}`, a);
+    }
+
+    const snapshots: StaffBookingSnapshot[] = [];
+    for (const req of requests) {
+      const staff = staffMap.get(req.staffMemberId);
+      if (!staff) {
+        // Unknown or cross-tenant staff ID: fail closed, return no snapshot
+        continue;
+      }
+      const assignment = assignmentMap.get(`${req.staffMemberId}:${req.serviceId}`);
+      snapshots.push({
+        staffMemberId: req.staffMemberId,
+        serviceId: req.serviceId,
+        displayName: staff.displayName,
+        isActive: staff.isActive,
+        overridePrice: assignment?.overridePrice ?? null,
+        overrideDurationMinutes: assignment?.overrideDurationMinutes ?? null,
+        isBookable: assignment ? assignment.isBookable : false,
+      });
+    }
+    return snapshots;
+  }
+
+  async getStaffAvailabilitySchedule(
+    businessId: string,
+    criteria: {
+      branchId: string;
+      serviceId: string;
+      date: string;
+      dayOfWeek: number;
+      staffMemberId?: string;
+      dayStartUtc?: Date;
+      dayEndUtc?: Date;
+    },
+  ): Promise<StaffScheduleCandidate[]> {
+    let candidateStaffIds: string[] = [];
+
+    if (criteria.staffMemberId) {
+      const member = await this.database.query.staffMembers.findFirst({
+        where: and(
+          eq(staffMembers.id, criteria.staffMemberId),
+          eq(staffMembers.businessId, businessId),
+          eq(staffMembers.status, 'active'),
+        ),
+      });
+      if (!member) return [];
+
+      const assignment = await this.database.query.staffBranchAssignments.findFirst({
+        where: and(
+          eq(staffBranchAssignments.staffMemberId, criteria.staffMemberId),
+          eq(staffBranchAssignments.branchId, criteria.branchId),
+          eq(staffBranchAssignments.businessId, businessId),
+          isNull(staffBranchAssignments.unassignedAt),
+        ),
+      });
+      if (!assignment) return [];
+      candidateStaffIds = [criteria.staffMemberId];
+    } else {
+      const assignments = await this.database
+        .select({ staffMemberId: staffBranchAssignments.staffMemberId })
+        .from(staffBranchAssignments)
+        .innerJoin(
+          staffMembers,
+          and(
+            eq(staffMembers.id, staffBranchAssignments.staffMemberId),
+            eq(staffMembers.businessId, businessId),
+            eq(staffMembers.status, 'active'),
+          ),
+        )
+        .where(
+          and(
+            eq(staffBranchAssignments.businessId, businessId),
+            eq(staffBranchAssignments.branchId, criteria.branchId),
+            isNull(staffBranchAssignments.unassignedAt),
+          ),
+        );
+      candidateStaffIds = assignments.map((a) => a.staffMemberId);
+    }
+
+    if (candidateStaffIds.length === 0) return [];
+
+    const serviceConfigs = await this.database.query.staffServices.findMany({
+      where: and(
+        inArray(staffServices.staffMemberId, candidateStaffIds),
+        eq(staffServices.serviceId, criteria.serviceId),
+        eq(staffServices.businessId, businessId),
+      ),
+    });
+    const configMap = new Map(serviceConfigs.map((c) => [c.staffMemberId, c]));
+
+    const shifts = await this.database
+      .select({
+        staffMemberId: staffWorkSchedules.staffMemberId,
+        startsAt: staffScheduleShifts.startsAt,
+        endsAt: staffScheduleShifts.endsAt,
+        effectiveFrom: staffWorkSchedules.effectiveFrom,
+        recurrencePattern: staffWorkSchedules.recurrencePattern,
+      })
+      .from(staffScheduleShifts)
+      .innerJoin(staffWorkSchedules, eq(staffScheduleShifts.workScheduleId, staffWorkSchedules.id))
+      .where(
+        and(
+          eq(staffWorkSchedules.businessId, businessId),
+          inArray(staffWorkSchedules.staffMemberId, candidateStaffIds),
+          eq(staffWorkSchedules.branchId, criteria.branchId),
+          lte(staffWorkSchedules.effectiveFrom, criteria.date),
+          sql`(${staffWorkSchedules.effectiveUntil} IS NULL OR ${staffWorkSchedules.effectiveUntil} >= ${criteria.date})`,
+          eq(staffScheduleShifts.dayOfWeek, criteria.dayOfWeek),
+        ),
+      );
+
+    const shiftMap = new Map<string, { startsAt: string; endsAt: string }[]>();
+    for (const shift of shifts) {
+      if (!isScheduleActiveOnDate(shift.effectiveFrom, shift.recurrencePattern, criteria.date)) {
+        continue;
+      }
+      const list = shiftMap.get(shift.staffMemberId) ?? [];
+      list.push({ startsAt: shift.startsAt, endsAt: shift.endsAt });
+      shiftMap.set(shift.staffMemberId, list);
+    }
+
+    const dayStart = criteria.dayStartUtc ?? new Date(`${criteria.date}T00:00:00.000Z`);
+    const dayEnd = criteria.dayEndUtc ?? new Date(`${criteria.date}T23:59:59.999Z`);
+    const timeOffRows = await this.database.query.staffTimeOff.findMany({
+      where: and(
+        eq(staffTimeOff.businessId, businessId),
+        inArray(staffTimeOff.staffMemberId, candidateStaffIds),
+        sql`${staffTimeOff.startsAt} < ${dayEnd} AND ${staffTimeOff.endsAt} > ${dayStart}`,
+      ),
+    });
+    const timeOffMap = new Map<string, { startsAt: Date; endsAt: Date }[]>();
+    for (const to of timeOffRows) {
+      const list = timeOffMap.get(to.staffMemberId) ?? [];
+      list.push({ startsAt: to.startsAt, endsAt: to.endsAt });
+      timeOffMap.set(to.staffMemberId, list);
+    }
+
+    const candidates: StaffScheduleCandidate[] = [];
+    for (const staffId of candidateStaffIds) {
+      const config = configMap.get(staffId);
+      if (!config?.isBookable) {
+        continue;
+      }
+      const staffShifts = shiftMap.get(staffId) ?? [];
+      if (staffShifts.length === 0) {
+        continue;
+      }
+
+      candidates.push({
+        staffMemberId: staffId,
+        overrideDurationMinutes: config.overrideDurationMinutes ?? null,
+        shifts: staffShifts,
+        timeOff: timeOffMap.get(staffId) ?? [],
+      });
+    }
+
+    return candidates;
   }
 }

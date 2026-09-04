@@ -74,10 +74,29 @@ export interface StaffMemberWithRelations extends StaffMemberProps {
   workSchedules: (StaffWorkSchedule & { shifts: StaffScheduleShift[] })[];
 }
 
+export interface StaffBookingSnapshot {
+  staffMemberId: string;
+  serviceId: string;
+  displayName: string;
+  isActive: boolean;
+  overridePrice: string | null;
+  overrideDurationMinutes: number | null;
+  isBookable: boolean;
+}
+
+export interface StaffScheduleCandidate {
+  staffMemberId: string;
+  overrideDurationMinutes: number | null;
+  shifts: { startsAt: string; endsAt: string }[];
+  timeOff: { startsAt: Date; endsAt: Date }[];
+}
+
 export interface IStaffRepository {
   create(data: CreateStaffMemberData): Promise<StaffMemberEntity>;
   findById(businessId: string, staffMemberId: string): Promise<StaffMemberEntity | null>;
+  isStaffMemberActive(businessId: string, staffMemberId: string): Promise<boolean>;
   isStaffMemberActive(staffMemberId: string): Promise<boolean>;
+  isStaffMemberActive(businessIdOrStaffId: string, maybeStaffMemberId?: string): Promise<boolean>;
   findAllByBusinessId(businessId: string): Promise<StaffMemberEntity[]>;
   update(
     businessId: string,
@@ -137,4 +156,20 @@ export interface IStaffRepository {
     staffMemberId: string,
     branchId?: string,
   ): Promise<(StaffWorkSchedule & { shifts: StaffScheduleShift[] })[]>;
+  getStaffBookingSnapshots(
+    businessId: string,
+    requests: { staffMemberId: string; serviceId: string }[],
+  ): Promise<StaffBookingSnapshot[]>;
+  getStaffAvailabilitySchedule(
+    businessId: string,
+    criteria: {
+      branchId: string;
+      serviceId: string;
+      date: string;
+      dayOfWeek: number;
+      staffMemberId?: string;
+      dayStartUtc?: Date;
+      dayEndUtc?: Date;
+    },
+  ): Promise<StaffScheduleCandidate[]>;
 }
