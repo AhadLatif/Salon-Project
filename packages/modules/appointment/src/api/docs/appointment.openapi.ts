@@ -107,6 +107,13 @@ appointmentOpenApiRegistry.registerPath({
       schema: { type: 'string', format: 'uuid' },
       description: 'Active tenant business UUID',
     },
+    {
+      name: 'x-branch-id',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Branch UUID for branch-scoped access',
+    },
   ],
   request: {
     body: {
@@ -194,6 +201,13 @@ appointmentOpenApiRegistry.registerPath({
       in: 'header',
       required: true,
       schema: { type: 'string', format: 'uuid' },
+    },
+    {
+      name: 'x-branch-id',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Branch UUID for branch-scoped access',
     },
   ],
   responses: {
@@ -322,7 +336,7 @@ appointmentOpenApiRegistry.registerPath({
 });
 
 appointmentOpenApiRegistry.registerPath({
-  method: 'post',
+  method: 'patch',
   path: '/api/v1/businesses/{businessId}/appointments/{appointmentId}/status',
   summary: 'Transition appointment lifecycle status',
   description:
@@ -347,6 +361,13 @@ appointmentOpenApiRegistry.registerPath({
       in: 'header',
       required: true,
       schema: { type: 'string', format: 'uuid' },
+    },
+    {
+      name: 'x-branch-id',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Branch UUID for branch-scoped access',
     },
   ],
   request: {
@@ -403,6 +424,13 @@ appointmentOpenApiRegistry.registerPath({
       required: true,
       schema: { type: 'string', format: 'uuid' },
     },
+    {
+      name: 'x-branch-id',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Branch UUID for branch-scoped access',
+    },
   ],
   request: {
     body: {
@@ -456,6 +484,13 @@ appointmentOpenApiRegistry.registerPath({
       in: 'header',
       required: true,
       schema: { type: 'string', format: 'uuid' },
+    },
+    {
+      name: 'x-branch-id',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', format: 'uuid' },
+      description: 'Branch UUID for branch-scoped access',
     },
   ],
   request: {

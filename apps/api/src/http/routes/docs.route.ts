@@ -39,6 +39,11 @@ export function createDocsRouter(): Router {
         description: 'Current API server',
       },
     ],
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   });
 
   // 3. Serve raw OpenAPI JSON spec
