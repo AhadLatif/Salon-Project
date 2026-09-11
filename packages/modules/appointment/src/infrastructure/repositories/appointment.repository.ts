@@ -10,6 +10,7 @@ import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type {
   AppointmentFilters,
   CancelAppointmentData,
+  CompleteAppointmentForPaymentData,
   IAppointmentRepository,
   OccupiedAllocationInterval,
   RescheduleAppointmentData,
@@ -385,6 +386,89 @@ export class AppointmentRepository implements IAppointmentRepository {
             ),
           );
       }
+
+      return this.toDomainEntity(updated, appt.services);
+    });
+  }
+
+  /**
+   * Marks the appointment `completed` because it has been paid in full.
+   *
+   * Called from the Payment module (via AppointmentPaymentService). Unlike the
+   * manual FSM (`transitionStatus`), this accepts any non-terminal state, matching
+   * Fresha's POS checkout which completes an appointment regardless of calendar step.
+   * Terminal appointments (completed/cancelled/no_show) are rejected with a
+   * ConflictError — a paid appointment that was cancelled cannot be revived.
+   * Completed releases the calendar slot (not in BLOCKING_STATUSES).
+   */
+  async completeForPayment(data: CompleteAppointmentForPaymentData): Promise<AppointmentEntity> {
+    return await this.db.transaction(async (tx) => {
+      const conditions = [
+        eq(appointments.businessId, data.businessId),
+        eq(appointments.id, data.appointmentId),
+      ];
+      if (data.branchId) {
+        conditions.push(eq(appointments.branchId, data.branchId));
+      }
+
+      const appt = await tx.query.appointments.findFirst({
+        where: and(...conditions),
+        with: {
+          services: {
+            orderBy: (s, { asc }) => [asc(s.sequence)],
+          },
+        },
+      });
+
+      if (!appt) {
+        throw new ResourceNotFoundError(
+          `Appointment ${data.appointmentId} not found in this business`,
+        );
+      }
+
+      const currentStatus = appt.status as AppointmentStatus;
+      if (
+        currentStatus === 'completed' ||
+        currentStatus === 'cancelled' ||
+        currentStatus === 'no_show'
+      ) {
+        throw new ConflictError(
+          `Cannot complete an appointment in terminal status "${currentStatus}".`,
+        );
+      }
+
+      const now = new Date();
+
+      const [updated] = await tx
+        .update(appointments)
+        .set({ status: 'completed', updatedAt: now })
+        .where(and(...conditions, eq(appointments.status, currentStatus)))
+        .returning();
+
+      if (!updated) {
+        throw new ConflictError(
+          'Appointment status changed concurrently — please retry the operation.',
+        );
+      }
+
+      await tx.insert(appointmentStatusHistory).values({
+        businessId: data.businessId,
+        appointmentId: data.appointmentId,
+        fromStatus: currentStatus,
+        toStatus: 'completed',
+        reason: 'Paid in full',
+        changedByUserId: data.actorUserId ?? null,
+        changedByBusinessMemberId: data.actorBusinessMemberId ?? null,
+      });
+
+      await tx
+        .delete(appointmentServiceAllocations)
+        .where(
+          and(
+            eq(appointmentServiceAllocations.businessId, data.businessId),
+            eq(appointmentServiceAllocations.appointmentId, data.appointmentId),
+          ),
+        );
 
       return this.toDomainEntity(updated, appt.services);
     });

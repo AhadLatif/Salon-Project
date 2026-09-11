@@ -15,6 +15,7 @@ import type {
   IServiceValidator,
   IStaffValidator,
 } from './application/ports/appointment-validators.port.js';
+import { AppointmentPaymentService } from './application/services/appointment-payment.service.js';
 import { CancelAppointmentUseCase } from './application/use-cases/cancel-appointment.use-case.js';
 import { CreateAppointmentUseCase } from './application/use-cases/create-appointment.use-case.js';
 import { GetAppointmentDetailUseCase } from './application/use-cases/get-appointment-detail.use-case.js';
@@ -27,8 +28,10 @@ import { AppointmentRepository } from './infrastructure/repositories/appointment
 export * from './api/controllers/index.js';
 export * from './api/docs/index.js';
 export * from './api/dtos/index.js';
+export * from './application/ports/appointment-payment-service.port.js';
 export * from './application/ports/appointment-repository.port.js';
 export * from './application/ports/appointment-validators.port.js';
+export * from './application/services/appointment-payment.service.js';
 export * from './application/use-cases/index.js';
 export * from './domain/entities/index.js';
 export * from './domain/services/segment-timing.js';
@@ -61,12 +64,17 @@ export interface AppointmentModule {
   repos: {
     appointmentRepository: AppointmentRepository;
   };
+  /** Cross-module service consumed by the Payment module for snapshots + paid-in-full completion. */
+  paymentService: AppointmentPaymentService;
 }
 
 /** Creates the appointment module with all use-cases, controllers, and routers wired. */
 export function createAppointmentModule(deps: AppointmentModuleDependencies): AppointmentModule {
   // 1. Repositories
   const appointmentRepository = new AppointmentRepository(deps.database);
+
+  // 1b. Cross-module payment service (read snapshot + complete-as-paid)
+  const paymentService = new AppointmentPaymentService(appointmentRepository);
 
   // 2. Use Cases
   const createAppointmentUseCase = new CreateAppointmentUseCase(
@@ -172,5 +180,6 @@ export function createAppointmentModule(deps: AppointmentModuleDependencies): Ap
     repos: {
       appointmentRepository,
     },
+    paymentService,
   };
 }

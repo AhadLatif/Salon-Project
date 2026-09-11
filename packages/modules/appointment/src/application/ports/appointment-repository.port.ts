@@ -75,6 +75,24 @@ export interface TransitionAppointmentStatusData {
   reason?: string | null | undefined;
 }
 
+/**
+ * Marks an appointment complete because it has been paid in full.
+ *
+ * The Payment module drives this via a cross-module query service, so this
+ * intentionally bypasses the strict `in_progress → completed` FSM edge (Fresha
+ * POS: checkout marks the appointment Completed regardless of the calendar step).
+ * It still refuses terminal appointments (completed/cancelled/no_show) and uses
+ * CAS on `status` to survive races, writes status history, and deletes the
+ * completed appointment's allocations (completed does not block the calendar).
+ */
+export interface CompleteAppointmentForPaymentData {
+  businessId: string;
+  appointmentId: string;
+  branchId?: string | undefined;
+  actorUserId?: string | null | undefined;
+  actorBusinessMemberId?: string | null | undefined;
+}
+
 export interface RescheduleAppointmentData {
   businessId: string;
   appointmentId: string;
@@ -151,6 +169,9 @@ export interface IAppointmentRepository {
 
   /** Atomically transitions appointment status, logs history, and frees allocations if terminal. */
   transitionStatus(data: TransitionAppointmentStatusData): Promise<AppointmentEntity>;
+
+  /** Marks an appointment complete after full payment (Fresha POS checkout) and logs history. */
+  completeForPayment(data: CompleteAppointmentForPaymentData): Promise<AppointmentEntity>;
 
   /** Atomically reschedules an appointment to a new start time, checking for conflicts. */
   reschedule(data: RescheduleAppointmentData): Promise<AppointmentEntity>;
