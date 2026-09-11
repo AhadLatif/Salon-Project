@@ -4,6 +4,7 @@ import { branchOpenApiRegistry } from '@salon/branch';
 import { businessOpenApiRegistry } from '@salon/business';
 import { customerOpenApiRegistry } from '@salon/customer';
 import { identityOpenApiRegistry } from '@salon/identity';
+import { paymentOpenApiRegistry } from '@salon/payment';
 import { rbacOpenApiRegistry } from '@salon/rbac';
 import { serviceOpenApiRegistry } from '@salon/service';
 import { staffOpenApiRegistry } from '@salon/staff';
@@ -23,6 +24,7 @@ export function createDocsRouter(): Router {
     ...staffOpenApiRegistry.definitions,
     ...customerOpenApiRegistry.definitions,
     ...appointmentOpenApiRegistry.definitions,
+    ...paymentOpenApiRegistry.definitions,
   ]);
 
   // 2. Build the unified OpenAPI Specification document

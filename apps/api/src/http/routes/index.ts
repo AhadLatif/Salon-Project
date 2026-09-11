@@ -5,6 +5,7 @@ import { config } from '@salon/config';
 import { createCustomerModule } from '@salon/customer';
 import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
+import { createPaymentModule } from '@salon/payment';
 import {
   createRbacModule,
   type IBranchValidator,
@@ -134,6 +135,20 @@ export function initializeModules(app: Express): void {
     staffValidator: staffModule.staffQueryService,
   });
 
+  // 9. Initialize Payment Module (Cash MVP)
+  // Cross-module appointment data flows through appointmentModule.paymentService,
+  // which structurally satisfies the payment module's narrow consumer port. No
+  // payment SQL ever touches appointment tables.
+  const paymentModule = createPaymentModule({
+    database: db,
+    authMiddleware: identityModule.authMiddleware,
+    tenantMiddleware: businessModule.tenantMiddleware,
+    requirePermission: rbacModule.requirePermission,
+    requireBranchContext: rbacModule.requireBranchContext,
+    appointmentService: appointmentModule.paymentService,
+    businessMemberValidator: businessModule.businessValidationService,
+  });
+
   // 9. Mount Module Routers onto API Pipeline (/api/v1)
   const v1Router = Router();
 
@@ -148,6 +163,12 @@ export function initializeModules(app: Express): void {
   v1Router.use('/businesses/:businessId/customers', customerModule.customerRouter);
   v1Router.use('/businesses/:businessId/customer-tags', customerModule.customerTagRouter);
   v1Router.use('/businesses/:businessId/appointments', appointmentModule.appointmentRouter);
+  v1Router.use('/businesses/:businessId/payments', paymentModule.paymentRouter);
+  // Appointment-scoped payment flows (capture + per-appointment payment view).
+  v1Router.use(
+    '/businesses/:businessId/appointments/:appointmentId',
+    paymentModule.appointmentPaymentRouter,
+  );
   v1Router.use('/favorites', customerModule.favoriteRouter);
 
   app.use('/api/v1', v1Router);

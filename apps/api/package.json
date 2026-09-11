@@ -41,6 +41,7 @@
     "@salon/rbac": "workspace:*",
     "@salon/service": "workspace:*",
     "@salon/logger": "workspace:*",
+    "@salon/payment": "workspace:*",
     "@salon/shared": "workspace:*",
     "@salon/staff": "workspace:*",
     "@salon/validation": "workspace:*",
