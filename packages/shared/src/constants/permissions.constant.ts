@@ -157,6 +157,26 @@ export const PERMISSION_CATALOG = [
     name: 'Delete Customer',
     description: 'Allows archiving customer profiles and deleting notes or tags.',
   },
+
+  // --- PAYMENT ---
+  {
+    code: 'payment.read',
+    module: 'Payment',
+    name: 'View Payments',
+    description: 'Allows viewing payments and payment transactions for the business.',
+  },
+  {
+    code: 'payment.capture',
+    module: 'Payment',
+    name: 'Capture Payment',
+    description: 'Allows recording cash payments against appointments.',
+  },
+  {
+    code: 'payment.refund',
+    module: 'Payment',
+    name: 'Refund Payment',
+    description: 'Allows issuing refunds against captured payments.',
+  },
 ] as const satisfies readonly PermissionDefinition[];
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]['code'];
