@@ -64,6 +64,13 @@
       "when": 1788337197740,
       "tag": "0008_add_appointment_service_allocations",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788969600000,
+      "tag": "0009_add_payment",
+      "breakpoints": true
     }
   ]
 }
