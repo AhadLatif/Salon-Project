@@ -47,7 +47,7 @@ A **multi-tenant SaaS + B2C marketplace** for salons (Fresha-style). Built as a 
 
 ```
 apps/
-  api/ lenker                    # The Express API application (entry point)
+  api/                          # The Express API application (entry point)
     src/
       app.ts                # Creates the Express app (middleware order matters)
       main.ts                # Bootstrap entry
@@ -122,70 +122,47 @@ Before implementing a module:
 4. Preserve **existing conventions** unless there is a concrete reason to change.
 5. If your choice of architecture materially changes the design / is genuinely ambiguous, **stop and ask the user** before choosing.
 
-### The 7-Step Module Checklist (kept as a useful default, not a rule)
+### Core Rule: Top-to-Bottom Vertical Slices Only
+All feature implementation, module creation, and teaching MUST strictly follow **Top-to-Bottom (Outside-In) Vertical Slicing**. Never implement horizontally across layers. For the exact procedure and feedback loop requirements, follow [.agents/skills/module-implementation/SKILL.md](file:///.agents/skills/module-implementation/SKILL.md).
 
-Build modules following this order:
-
-1. **Define the PORT** (`application/ports/`)
-2. **Implement the REPOSITORY** (in `infrastructure/repositories/`)
-3. **Write the USE CASE** in `application/use-cases/` (top-down, `execute()` reveals deps)
-4. **Create the CONTROLLER** in `api/controllers/`
-5. **Define the schemas** in `api/dtos/`
-6. **Add the OpenAPI registry** (`api/docs/`)
-7. **Wire the module factory** (`index.ts`) + mount it in `apps/api/src/http/routes/index.ts`
 
 ---
 
-## 4. Execution Workflow & phase lifecycle
+## 4. Module Lifecycle & Execution Phases
 
-For quality, security, and learning outcomes: **build each module strictly phase-by-phase**. Never rush or combine all phases.
+Build each module deliberately, one logical module and vertical slice at a time. Never rush or combine phases. Follow the `/build-module` workflow.
 
-## 4. Module lifecycle
+### Phase 1 — Understand & Plan
+- Inspect existing code, tests, configuration, and docs.
+- Determine dependencies and module order.
+- Consult relevant Fresha/external behavior via `source-of-truth` skill.
+- Identify security, concurrency, and operational edge cases. State what is out of scope.
 
-Each module is built deliberately and one logical module at a time.
+### Phase 2 — Core Implementation (Vertical Slices)
+- Follow **Top-to-Bottom Vertical Slicing** per [.agents/skills/module-implementation/SKILL.md](file:///.agents/skills/module-implementation/SKILL.md).
+- Keep business logic strictly at the app/domain boundary.
+- Implement Fresha-style business logic and invariants (tenant isolation, price precision in integer minor units, duration checks, IDOR protection).
+- Comment standards: explain the *why* for non-obvious design decisions.
 
-### Phase 1 — Understand and plan
-- Inspect existing code, tests, configuration, docs.
-- Determine dependencies and module order
-- Check relevant external docs (Fresha-style behavior)
-- Identify security/operational edge cases
-- Decide what is out of scope
+### Phase 3 — Review & Edge Cases
+- Review logic, data boundaries, concurrency, and error paths via `security-review` skill.
+- Fix meaningful edge cases *before* writing tests.
 
-### Phase 2 — Core implementation
-- Use the module's chosen style.
-- Keep *business logic* at the app/domain boundary.
-- Refrain from speculative abstractions / features.
-- Follow the 7-step (ports → reposs → use-cases → controllers → dtos → OpenAPI → wire and mount)
-- Implement Fresha-style business logic and security edge cases (tenant time, price precision, duration checks, IDOR protection)
-- Comments standard: add useful, well-written comments explaining the *why*, not shallow/AI junk.
+### Phase 4 & 5 — Tests, Integration & Refinements
+- Use `testing` skill and `/test-module` workflow.
+- Write minimal unit + API integration tests covering important business, concurrency, and failure edge cases.
+- Run `pnpm check` and `pnpm test`. Fix real bugs discovered by tests.
 
-### Phase 3 — Review and fix issues
-- Review for logic, data, security, business, concurrency, integration.
-- Fix *meaningful* *edge cases* *before* the tests.
+### Phase 6 — Documentation (Gated)
+- **Permission Gate**: STOP and ask the user for explicit permission before creating docs.
+- When approved, follow `module-documentation` skill and `/document-module` workflow:
+  - Write/update module flow docs (`docs/workflows/<module>/BUSINESS_WORKFLOW.md`, `TECHNICAL_ARCHITECTURE.md`).
+  - Create isolated daily bug audit in `docs/implementation/bug-reports/YYYY-MM-DD_<module>_audit.md`.
+  - Create learning decision record in `docs/implementation/decisions/DECISION-NNN-<Title>.md`.
+  - Update README indexes in both directories.
 
-### Phase 4 — Tests and integration
-- Use the `testing` skill.
-- Inspect before writing tests.
-- Write minimal unit + API tests that cover *important* failure/security/business/retry edge cases.
-
-### Phase 5 — Test fixes + refinements
-- Run `pnpm check` and `pnpm test` as applicable.
-- Fix real bugs / edge cases discovered by tests.
-- Re-review security/business edge cases.
-
-### Phase 6 — Docs
-- Use `module-documentation` skill.
-- Write/update module *flow docs* (`docs/workflows/<module>/BUSINESS_WORKFLOW.md`, `TECHNICAL_ARCHITECTURE.md`).
-- Update `docs/workflows/INDEX.md`.
-- Create isolated daily bug report in `docs/implementation/bug-reports/YYYY-MM-DD_<module>_audit.md`.
-- Create implementation learning decision record in `docs/implementation/decisions/DECISION-NNN-<Title>.md`.
-- Update README indexes in both directories.
-
-### Permission gate — Documentation
-After implementation + tests: **ASK the USER for Explicit permission** to create docs.
-
-### Permission gate — Module boundaries
-Only when explicitly permitted.
+### Permission Gate — Module Boundaries
+Never start the next module without explicit permission from the user.
 
 ---
 
@@ -240,20 +217,18 @@ Don't invent undocumented:
 ## 7. Module Roadmap
 
 ### ✅ DONE
-- **Infra:** config, database(all schema), shared errors, logger, validation
-- **Auth:** register, login, logout, refresh
-- **Business module:** tenant setup, business member onboarding, owner RBAC grant
+- **Infra:** config, database (all schemas), shared errors, logger, validation
+- **Auth & Identity:** register, login, logout, refresh
+- **Business & Branch:** tenant setup, business member onboarding, branch management
 - **RBAC:** permission matrix, custom roles, owner bypass, `requirePermission` middleware
+- **Service & Staff:** service catalog, staff schedules, allocations
+- **Customer:** CRM, profiles, notes, tags
+- **Appointment:** booking engine, calendar allocations, FSM status transitions
+
+### 🔄 CURRENT
+- **Payment module:** cash capture, stripe checkout, deposits, refunds, POS checkout
 
 ### 🔜 NEXT (in logical order)
-1. **Customer module** — CRM, profiles, notes, media.
-2. **Appointment module** — availability engine, booking calendar, locks.
-3. **Marketplace module** — discovery, search by service.
-4. **Payment module** — Stripe checkout, deposits, idempotency.
-5. **Notification module** — event-driven reminders.
-6. **Review module** — ratings & reviews.
-
-### Key ordering principle
-- **Customer before Appointment:** requires a customer *to book*.
-- **Appointment requires:** branch, service, **AND active staff** — all exist.
-- **Business → Branch → Service → StaffMember → Appointment** — and matches the Fresha platform.
+1. **Marketplace module** — discovery, search by service/location.
+2. **Notification module** — event-driven reminders, SMS/email.
+3. **Review module** — ratings & client reviews.
