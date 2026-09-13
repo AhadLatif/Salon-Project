@@ -5,7 +5,7 @@
  * the sequential start/end times and buffer-aware occupied periods that the
  * repository persists and that the GiST EXCLUDE constraint validates.
  *
- * Product decisions (docs/workflows/appointment/ROADMAP.md §3):
+ * Product decisions (docs/20-backend/30-implementation/10-workflows/appointment/ROADMAP.md §3):
  *  #4  Multi-service bookings use sequential appointment_services rows.
  *  #7  processingTime / extraTime are snapshot-only and do NOT extend the
  *      bookable/occupied interval.

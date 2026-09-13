@@ -9,7 +9,7 @@
  * (appointments, appointment_services, appointment_service_allocations,
  *  appointment_status_history)
  *
- * Product decisions (docs/workflows/appointment/ROADMAP.md §3):
+ * Product decisions (docs/20-backend/30-implementation/10-workflows/appointment/ROADMAP.md §3):
  *  - Statuses that block the calendar: pending, confirmed, checked_in, in_progress
  *    (completed, cancelled, no_show free the slot via allocation deletion).
  *  - Channel → initial status: business_dashboard / walk_in → confirmed;

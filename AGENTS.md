@@ -9,8 +9,8 @@ This repository separates four kinds of guidance:
 - `.agents/skills/` — specialized procedures used when a task matches a skill.
 - `.agents/workflows/` — explicit multi-step procedures for major activities such as building, testing, documenting a module.
 - `docs/` — project knowledge, research, decisions, module flows, history.
-- `docs/implementation/bug-reports/` — isolated daily bug reports and audit logs (`YYYY-MM-DD_<module>_audit.md`).
-- `docs/implementation/decisions/` — implementation learning and progression decision records (`DECISION-NNN-<Title>.md`).
+- `docs/90-shared/10-decisions-history/bug-reports/` — isolated daily bug reports and audit logs (`YYYY-MM-DD_<module>_audit.md`).
+- `docs/90-shared/10-decisions-history/iadr/` — implementation learning and progression decision records (`DECISION-NNN-<Title>.md`).
 
 The agent should not assume every Markdown file in `docs/` is a skill. Skills live under `.agents/skills/<skill-name>/SKILL.md`.
 
@@ -25,7 +25,7 @@ When instructions conflict:
 4. A matching workflow controls that activity.
 5. A matching skill controls that specialized procedure.
 6. `docs/` provides project-specific knowledge and context.
-7. The `docs/implementation/bug-reports/` and `docs/implementation/decisions/` document meaningful bugs, post-mortems, and learnings.
+7. The `docs/90-shared/10-decisions-history/bug-reports/` and `docs/90-shared/10-decisions-history/iadr/` document meaningful bugs, post-mortems, and learnings.
 
 Do not silently ignore conflicts — state the conflict and apply the highest-priority rule.
 
@@ -156,9 +156,9 @@ Build each module deliberately, one logical module and vertical slice at a time.
 ### Phase 6 — Documentation (Gated)
 - **Permission Gate**: STOP and ask the user for explicit permission before creating docs.
 - When approved, follow `module-documentation` skill and `/document-module` workflow:
-  - Write/update module flow docs (`docs/workflows/<module>/BUSINESS_WORKFLOW.md`, `TECHNICAL_ARCHITECTURE.md`).
-  - Create isolated daily bug audit in `docs/implementation/bug-reports/YYYY-MM-DD_<module>_audit.md`.
-  - Create learning decision record in `docs/implementation/decisions/DECISION-NNN-<Title>.md`.
+  - Write/update module flow docs (`docs/20-backend/30-implementation/10-workflows/<module>/BUSINESS_WORKFLOW.md`, `TECHNICAL_ARCHITECTURE.md`).
+  - Create isolated daily bug audit in `docs/90-shared/10-decisions-history/bug-reports/YYYY-MM-DD_<module>_audit.md`.
+  - Create learning decision record in `docs/90-shared/10-decisions-history/iadr/DECISION-NNN-<Title>.md`.
   - Update README indexes in both directories.
 
 ### Permission Gate — Module Boundaries
