@@ -31,6 +31,29 @@ export class PaymentController {
    * Records a cash payment against an appointment (Fresha POS "checkout").
    *
    * @http POST /api/v1/businesses/:businessId/appointments/:appointmentId/payments/capture
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   * @body
+   *   - amount?: number (integer minor units / cents; defaults to snapshot total)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('payment.capture') -> requireBranchContext
+   *          -> PaymentController.captureCash
+   *          -> validateBody(captureCashPaymentSchema)
+   *          -> CaptureCashPaymentUseCase.execute
+   *          -> PaymentRepository.createPaymentTransaction & AppointmentService.markPaidInFull
+   *
+   * @returns 201 Created { success: true, data: { payment: { ... } }, error: null, meta: { completed: boolean } }
+   * @throws 400 Bad Request (Invalid payment amount or overpayment)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / branch mismatch / invalid actor member)
+   * @throws 404 Not Found (Appointment not found)
+   * @throws 409 Conflict (Appointment already paid in full)
    */
   async captureCash(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -62,6 +85,28 @@ export class PaymentController {
    * Issues a cash refund against a captured payment.
    *
    * @http POST /api/v1/businesses/:businessId/payments/:paymentId/refunds
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :paymentId (UUID)
+   * @body
+   *   - amount: number (integer minor units / cents; must be > 0 and <= refundable balance)
+   *   - reason?: string (max 500 chars)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('payment.refund')
+   *          -> PaymentController.refund
+   *          -> validateBody(recordCashRefundSchema)
+   *          -> RecordCashRefundUseCase.execute
+   *          -> PaymentRepository.recordRefund (transaction: insert refund + update payment status)
+   *
+   * @returns 201 Created { success: true, data: { payment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Refund amount exceeds refundable balance or illegal status)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / actor not verified member)
+   * @throws 404 Not Found (Payment record not found)
    */
   async refund(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -92,6 +137,25 @@ export class PaymentController {
    * Fetches the payment for a specific appointment (one payment per appointment).
    *
    * @http GET /api/v1/businesses/:businessId/appointments/:appointmentId/payment
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('payment.read')
+   *          -> PaymentController.getForAppointment
+   *          -> getTenantContext & getUuidParam
+   *          -> GetPaymentDetailUseCase.executeByAppointment(businessId, appointmentId)
+   *          -> PaymentRepository.findByAppointmentId
+   *
+   * @returns 200 OK { success: true, data: { payment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid UUID format)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant access)
+   * @throws 404 Not Found (Payment not found for appointment)
    */
   async getForAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -117,6 +181,25 @@ export class PaymentController {
    * Fetches a single payment aggregate by id.
    *
    * @http GET /api/v1/businesses/:businessId/payments/:paymentId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :paymentId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('payment.read')
+   *          -> PaymentController.findById
+   *          -> getTenantContext & getUuidParam
+   *          -> GetPaymentDetailUseCase.execute(businessId, paymentId)
+   *          -> PaymentRepository.findById
+   *
+   * @returns 200 OK { success: true, data: { payment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid UUID format)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant access)
+   * @throws 404 Not Found (Payment record not found)
    */
   async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -139,6 +222,29 @@ export class PaymentController {
    * Lists payments for a business with optional status/date filtering + pagination.
    *
    * @http GET /api/v1/businesses/:businessId/payments
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   * @query
+   *   - status?: PaymentStatus | PaymentStatus[]
+   *   - fromDate?: ISO 8601 date-time
+   *   - toDate?: ISO 8601 date-time
+   *   - limit?: number (default 50, max 100)
+   *   - offset?: number (default 0)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('payment.read')
+   *          -> PaymentController.findAll
+   *          -> validateQuery(listPaymentsQuerySchema)
+   *          -> ListPaymentsUseCase.execute(businessId, filters)
+   *          -> PaymentRepository.findAll
+   *
+   * @returns 200 OK { success: true, data: { payments: [ ... ] }, error: null, meta: { total, limit, offset } }
+   * @throws 400 Bad Request (Invalid query parameters)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant access)
    */
   async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

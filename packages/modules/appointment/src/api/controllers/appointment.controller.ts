@@ -47,6 +47,31 @@ export class AppointmentController {
    * Books a new appointment with one or more service segments.
    *
    * @http POST /api/v1/businesses/:businessId/appointments
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID> (optional, for branch-scoped booking)
+   * @params
+   *   - :businessId (UUID)
+   * @body
+   *   - branchId: string (UUID, required if x-branch-id header not provided)
+   *   - businessCustomerId: string (UUID)
+   *   - scheduledStartAt: ISO 8601 date-time
+   *   - bookingChannel: 'marketplace' | 'business_dashboard' | 'walk_in'
+   *   - segments: array of { serviceId, staffMemberId, overrideDurationMinutes?, notes? }
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.create')
+   *          -> AppointmentController.create
+   *          -> validateBody(createAppointmentSchema)
+   *          -> CreateAppointmentUseCase.execute
+   *          -> AppointmentRepository.reserve (atomic: appointment + segments + GiST allocations)
+   *
+   * @returns 201 Created { success: true, data: { appointment: { ... } }, meta: {} }
+   * @throws 400 Bad Request (Validation failure / branch mismatch)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / permission denied)
+   * @throws 409 Conflict (Slot no longer available - GiST EXCLUDE violation)
    */
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -88,6 +113,25 @@ export class AppointmentController {
    * Retrieves an appointment by ID with all service segments.
    *
    * @http GET /api/v1/businesses/:businessId/appointments/:appointmentId
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.read') -> requireBranchContext
+   *          -> AppointmentController.findById
+   *          -> GetAppointmentDetailUseCase.execute(businessId, appointmentId, branchId)
+   *          -> AppointmentRepository.findByIdWithSegments
+   *
+   * @returns 200 OK { success: true, data: { appointment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid UUID format)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / branch mismatch)
+   * @throws 404 Not Found (Appointment not found in this business/branch)
    */
   async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -115,6 +159,33 @@ export class AppointmentController {
    * Queries appointments with filters and pagination.
    *
    * @http GET /api/v1/businesses/:businessId/appointments
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id?: <UUID> (optional branch filter)
+   * @params
+   *   - :businessId (UUID)
+   * @query
+   *   - branchId?: string (UUID)
+   *   - staffMemberId?: string (UUID)
+   *   - businessCustomerId?: string (UUID)
+   *   - status?: AppointmentStatus | AppointmentStatus[]
+   *   - fromDate?: ISO 8601 date-time
+   *   - toDate?: ISO 8601 date-time
+   *   - limit?: number (default 50, max 100)
+   *   - offset?: number (default 0)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.read')
+   *          -> AppointmentController.findAll
+   *          -> validateQuery(listAppointmentsQuerySchema)
+   *          -> ListAppointmentsUseCase.execute(businessId, effectiveFilters)
+   *          -> AppointmentRepository.findAll
+   *
+   * @returns 200 OK { success: true, data: { appointments: [ ... ] }, error: null, meta: { total, limit, offset } }
+   * @throws 400 Bad Request (Invalid query parameters)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Branch context mismatch)
    */
   async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -155,6 +226,29 @@ export class AppointmentController {
    * Cancels an existing appointment, freeing staff allocations.
    *
    * @http POST /api/v1/businesses/:businessId/appointments/:appointmentId/cancel
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   * @body
+   *   - cancellationReason?: string (max 500 chars)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.cancel') -> requireBranchContext
+   *          -> AppointmentController.cancel
+   *          -> validateBody(cancelAppointmentSchema)
+   *          -> CancelAppointmentUseCase.execute
+   *          -> AppointmentRepository.cancel (transitions status to 'cancelled', frees GiST allocations)
+   *
+   * @returns 200 OK { success: true, data: { appointment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid cancellation data or terminal status)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / permission denied)
+   * @throws 404 Not Found (Appointment not found)
+   * @throws 409 Conflict (Appointment cannot be cancelled from current status)
    */
   async cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -190,6 +284,29 @@ export class AppointmentController {
    * Transitions an appointment status (e.g. checked_in, in_progress, completed, no_show).
    *
    * @http POST /api/v1/businesses/:businessId/appointments/:appointmentId/status
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   * @body
+   *   - status: 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'no_show'
+   *   - reason?: string (max 500 chars)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.update') -> requireBranchContext
+   *          -> AppointmentController.transitionStatus
+   *          -> validateBody(transitionStatusSchema)
+   *          -> TransitionAppointmentStatusUseCase.execute
+   *          -> AppointmentRepository.updateStatus (enforces FSM lifecycle transitions)
+   *
+   * @returns 200 OK { success: true, data: { appointment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid target status or illegal FSM state transition)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / permission denied)
+   * @throws 404 Not Found (Appointment not found)
    */
   async transitionStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -226,6 +343,30 @@ export class AppointmentController {
    * Reschedules an appointment to a new start time, updating allocations atomically.
    *
    * @http POST /api/v1/businesses/:businessId/appointments/:appointmentId/reschedule
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   *   - x-branch-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   *   - :appointmentId (UUID)
+   * @body
+   *   - scheduledStartAt: ISO 8601 date-time
+   *   - reason?: string
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.update') -> requireBranchContext
+   *          -> AppointmentController.reschedule
+   *          -> validateBody(rescheduleAppointmentSchema)
+   *          -> RescheduleAppointmentUseCase.execute
+   *          -> AppointmentRepository.reschedule (recalculates segment offsets, updates allocations)
+   *
+   * @returns 200 OK { success: true, data: { appointment: { ... } }, error: null, meta: {} }
+   * @throws 400 Bad Request (Invalid start time or terminal status)
+   * @throws 401 Unauthorized
+   * @throws 403 Forbidden (Cross-tenant IDOR / permission denied)
+   * @throws 404 Not Found (Appointment not found)
+   * @throws 409 Conflict (Slot collision on reschedule target time)
    */
   async reschedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -262,6 +403,28 @@ export class AppointmentController {
    * Computes available booking slots for a service on a given date.
    *
    * @http GET /api/v1/businesses/:businessId/appointments/availability
+   * @headers
+   *   - Authorization: Bearer <accessToken>
+   *   - x-business-id: <UUID>
+   * @params
+   *   - :businessId (UUID)
+   * @query
+   *   - branchId: string (UUID)
+   *   - serviceId: string (UUID)
+   *   - date: 'YYYY-MM-DD'
+   *   - staffMemberId?: string (UUID, optional specific staff filter)
+   *
+   * @flow
+   *   Client -> authMiddleware -> tenantMiddleware -> requirePermission('appointment.read')
+   *          -> AppointmentController.getAvailability
+   *          -> validateQuery(getAvailabilityQuerySchema)
+   *          -> GetAvailabilityUseCase.execute
+   *          -> AvailabilityCalculator.computeSlots (evaluates branch hours, shifts, time-off, and existing GiST allocations)
+   *
+   * @returns 200 OK { success: true, data: { slots: [ ... ] }, error: null, meta: { totalSlots, date } }
+   * @throws 400 Bad Request (Invalid date format / UUIDs)
+   * @throws 401 Unauthorized
+   * @throws 404 Not Found (Branch or service not found in business)
    */
   async getAvailability(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
