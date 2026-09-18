@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
 import express from 'express';
 import { registerMiddleware } from './http/middlewares/index.js';
@@ -22,7 +23,7 @@ export function createApp(): Express {
   // Phase 1: Request logging & body parsing (Must be first)
   app.use(httpLoggerMiddleware);
   app.use(express.json());
-
+  app.use(cookieParser());
   // Phase 2: Interactive Documentation Route (Scalar UI at /docs)
   app.use(createDocsRouter());
 

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "uq_user_sessions_previous_refresh_token_hash" ON "user_sessions" USING btree ("previous_refresh_token_hash") WHERE "user_sessions"."previous_refresh_token_hash" IS NOT NULL;

@@ -1,0 +1,18 @@
+-- Identity: remember the refresh token we rotated away.
+--
+-- `refresh_token_hash` holds the LIVE token. When we rotate, we MOVE the old hash here
+-- instead of discarding it; that single column is what lets a later request presenting an
+-- already-exchanged token be recognised as REUSE (token theft) rather than as a random
+-- unknown string. See SessionRepository.rotateRefreshToken / findByTokenHash.
+--
+-- WHY THIS FILE CONTAINS ONLY ONE STATEMENT:
+-- This migration was originally generated carrying a DUPLICATE copy of every payment
+-- table that `0009_add_payment.sql` already creates. The cause is that
+-- `meta/0009_snapshot.json` does not exist in this repository. drizzle-kit computes a
+-- migration as the diff between the current TypeScript schema and the newest snapshot it
+-- can find; with no 0009 snapshot it fell back to `0008_snapshot.json` (which predates
+-- payments entirely) and concluded the payment tables still had to be created.
+-- Replaying the chain from zero therefore failed with:
+--     ERROR: type "payment_method" already exists
+-- The duplicated DDL has been removed here; `0009` already owns those objects.
+ALTER TABLE "user_sessions" ADD COLUMN "previous_refresh_token_hash" text;

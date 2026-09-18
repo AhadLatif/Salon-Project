@@ -46,7 +46,7 @@ export class AppointmentAvailabilityGuard {
     const uniqueStaffIds = Array.from(new Set(input.segments.map((s) => s.staffMemberId)));
     await Promise.all(
       uniqueStaffIds.map(async (staffMemberId) => {
-        const isAssigned = await this.staffValidator.hasStaffBranchAssignment(
+        const isAssigned = await this.staffValidator.isStaffMemberAssignedToBranch(
           input.businessId,
           staffMemberId,
           input.branchId,

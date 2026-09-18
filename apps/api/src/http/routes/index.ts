@@ -47,6 +47,7 @@ export function initializeModules(app: Express): void {
   const identityModule = createIdentityModule({
     database: db,
     jwtSecret: config.secret.jwt,
+    environment: config.app.environment,
   });
 
   // 2. Initialize Business Module (Tenant Verification)

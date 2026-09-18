@@ -1,5 +1,6 @@
 import { UnauthorizedError } from '@salon/shared';
 import type { UserEntity } from '../../domain/entities/user.entity.js';
+import { SESSION_TTL_MS } from '../../domain/session-policy.js';
 import type { IPasswordService } from '../ports/password-service.port.js';
 import type { ISessionRepository } from '../ports/session-repository.port.js';
 import type { ITokenService } from '../ports/token-service.port.js';
@@ -73,7 +74,7 @@ export class LoginUseCase {
         deviceType: command.deviceType,
         userAgent: command.userAgent ?? null,
         createdIp: command.ip ?? null,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
       });
 
       // 6. Generate stateless access token

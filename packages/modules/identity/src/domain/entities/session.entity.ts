@@ -3,6 +3,16 @@ export interface SessionProps {
   userId: string;
   authProviderId: string;
   refreshTokenHash: string;
+  /**
+   * Hash of the refresh token that was most recently rotated away.
+   *
+   * Why we keep it: after rotation the `refreshTokenHash` column holds the NEW token,
+   * so the OLD token would be unrecognisable — and an unrecognisable token is
+   * indistinguishable from a random string. Keeping the previous hash lets us answer
+   * the only question that matters for theft detection: "was this token already
+   * exchanged?" (see `RefreshTokenUseCase` reuse detection).
+   */
+  previousRefreshTokenHash?: string | null;
   deviceName?: string | null;
   deviceType: 'desktop' | 'mobile' | 'tablet' | 'unknown';
   userAgent?: string | null;
@@ -11,7 +21,13 @@ export interface SessionProps {
   expiresAt: Date;
   lastUsedAt: Date;
   revokedAt?: Date | null;
-  revokeReason?: 'logout' | 'logout_all' | 'compromised' | 'expired' | 'admin' | 'rotated' | null;
+  /**
+   * Mirrors the `session_revoke_reason` Postgres enum exactly. It must NOT grow a
+   * `'rotated'` member: rotation does not revoke a session (the session stays alive
+   * and simply holds a new hash), and a type that promises a value the database enum
+   * rejects would only compile a runtime failure.
+   */
+  revokeReason?: 'logout' | 'logout_all' | 'compromised' | 'expired' | 'admin' | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +46,9 @@ export class SessionEntity {
   }
   get refreshTokenHash(): string {
     return this.props.refreshTokenHash;
+  }
+  get previousRefreshTokenHash(): string | null {
+    return this.props.previousRefreshTokenHash ?? null;
   }
   get expiresAt(): Date {
     return this.props.expiresAt;

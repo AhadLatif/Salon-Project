@@ -71,6 +71,20 @@
       "when": 1788969600000,
       "tag": "0009_add_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789415787627,
+      "tag": "0010_add_previous_refresh_token_hash",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789536264586,
+      "tag": "0011_add_session_previous_token_index",
+      "breakpoints": true
     }
   ]
 }
