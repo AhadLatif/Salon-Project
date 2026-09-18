@@ -136,11 +136,22 @@ export function createAppointmentModule(deps: AppointmentModuleDependencies): Ap
     deps.requirePermission('appointment.read'),
     appointmentController.getAvailability.bind(appointmentController),
   );
-  // No requireBranchContext on /:appointmentId routes: the appointment is already scoped
-  // to the verified tenant (businessId WHERE clause). Cross-business IDOR is closed by SQL.
-  // Within-business branch IDOR for these routes is accepted as a deferred scope item;
-  // adding it would require Business B (in IDOR tests) to supply a valid branchId for the
-  // header, which it cannot do since it owns no branches.
+  // BRANCH-SCOPED routes: `requireBranchContext` is deliberately applied to every
+  // /:appointmentId route, not just the ones that mutate.
+  //
+  // WHY: without it, a staff member assigned to Branch A could read, cancel, reschedule or
+  // transition an appointment belonging to Branch B of the SAME business — a cross-branch IDOR
+  // that tenant scoping alone cannot stop, because both appointments share one `businessId`.
+  // The middleware resolves `x-branch-id` against the caller's branch access and injects it as
+  // `req.tenant.branchId`; the controller forwards it and the repository filters by it, so a
+  // cross-branch request fails closed with 404. See BUG-10 in
+  // docs/90-shared/10-decisions-history/bug-reports/2026-09-03_appointment_audit.md.
+  //
+  // A previous comment here claimed these routes were NOT branch-scoped and that the gap was an
+  // accepted deferral. That described the vulnerable pre-fix behaviour, and its stated premise
+  // was wrong: the IDOR test's own setup creates Business B WITH a branch, so a valid branch id
+  // is always available. Concluding from that comment that the middleware should be removed
+  // would reopen a Critical finding, so it has been replaced with the reasoning above.
   appointmentRouter.get(
     '/:appointmentId',
     deps.requirePermission('appointment.read'),

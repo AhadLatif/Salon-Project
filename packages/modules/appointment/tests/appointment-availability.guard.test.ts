@@ -31,6 +31,11 @@ describe('AppointmentAvailabilityGuard', () => {
     };
 
     const staffValidator: IStaffValidator = {
+      // Default: the staff member IS assigned to the branch, so the happy-path tests reach the
+      // checks they actually target. Without this the guard threw
+      // "isStaffMemberAssignedToBranch is not a function" and every test in this file failed for
+      // a reason that had nothing to do with what it asserted.
+      isStaffMemberAssignedToBranch: async () => true,
       isStaffMemberActive: async () => true,
       getStaffBookingSnapshots: async () => [],
       getStaffAvailabilitySchedule: async () => [
@@ -74,6 +79,59 @@ describe('AppointmentAvailabilityGuard', () => {
         ],
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it('rejects when the staff member is not assigned to the branch', async () => {
+    const guard = createGuard({
+      staffValidator: {
+        isStaffMemberAssignedToBranch: vi.fn().mockResolvedValue(false),
+      },
+    });
+
+    await expect(
+      guard.assertBookable({
+        businessId,
+        branchId,
+        bookingChannel: 'business_dashboard',
+        scheduledStartAt: new Date('2030-06-10T10:00:00.000Z'),
+        scheduledEndAt: new Date('2030-06-10T11:00:00.000Z'),
+        segments: [
+          {
+            serviceId,
+            staffMemberId,
+            startsAt: new Date('2030-06-10T10:00:00.000Z'),
+            endsAt: new Date('2030-06-10T11:00:00.000Z'),
+          },
+        ],
+      }),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it('checks branch assignment with the STAFF member id from the segment', async () => {
+    // Pins the identifier contract behind a real 409 bug: the guard passed a `staff_members.id`
+    // to a lookup that expected a `business_members.id`. Both are plain strings, so the compiler
+    // could not see the mismatch and the guard silently answered "not assigned". Asserting the
+    // arguments here is what stops that from being reintroduced unnoticed.
+    const isStaffMemberAssignedToBranch = vi.fn().mockResolvedValue(true);
+    const guard = createGuard({ staffValidator: { isStaffMemberAssignedToBranch } });
+
+    await guard.assertBookable({
+      businessId,
+      branchId,
+      bookingChannel: 'business_dashboard',
+      scheduledStartAt: new Date('2030-06-10T10:00:00.000Z'),
+      scheduledEndAt: new Date('2030-06-10T11:00:00.000Z'),
+      segments: [
+        {
+          serviceId,
+          staffMemberId,
+          startsAt: new Date('2030-06-10T10:00:00.000Z'),
+          endsAt: new Date('2030-06-10T11:00:00.000Z'),
+        },
+      ],
+    });
+
+    expect(isStaffMemberAssignedToBranch).toHaveBeenCalledWith(businessId, staffMemberId, branchId);
   });
 
   it('rejects when service is not bookable at branch', async () => {

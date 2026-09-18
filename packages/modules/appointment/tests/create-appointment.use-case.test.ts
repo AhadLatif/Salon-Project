@@ -133,6 +133,9 @@ function createStubValidators(overrides: StubOverrides = {}): {
       isCustomerInBusiness: async () => v.customerInBusiness,
     } satisfies ICustomerValidator,
     staffValidator: {
+      // Accepted staff member assigned to the branch: the guard checks branch assignment with
+      // the STAFF member id from the segment (not a business_members id).
+      isStaffMemberAssignedToBranch: async () => true,
       isStaffMemberActive: async () => v.staffActive,
       getStaffBookingSnapshots: async (_bId, requests) => {
         const results = [];

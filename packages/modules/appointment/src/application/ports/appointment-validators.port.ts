@@ -49,7 +49,19 @@ export interface StaffScheduleCandidate {
 
 /** Verifies a staff member exists, is active, and provides scheduling and snapshot data. */
 export interface IStaffValidator {
-  hasStaffBranchAssignment(
+  /**
+   * Whether an ACTIVE staff profile is currently assigned to the branch.
+   *
+   * NOTE the identifier: booking segments carry `staff_members.id`, NOT `business_members.id`.
+   * This used to be named `hasStaffBranchAssignment` with the same signature, and the composition
+   * root wired it straight to the staff module's query service of that name — which expects a
+   * `business_members.id`. Both parameters are `string`, so TypeScript could not see the mismatch,
+   * and the check answered `false` for every booking: the source of the 409
+   * "Staff member ... is not assigned to branch ..." on a correctly-assigned staff member.
+   *
+   * The method is named after the identifier it accepts so that mix-up cannot compile again.
+   */
+  isStaffMemberAssignedToBranch(
     businessId: string,
     staffMemberId: string,
     branchId: string,

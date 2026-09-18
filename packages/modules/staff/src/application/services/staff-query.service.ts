@@ -12,6 +12,21 @@ export interface IStaffQueryService {
     businessMemberId: string,
     branchId: string,
   ): Promise<boolean>;
+  /**
+   * Whether an ACTIVE staff profile is currently assigned to a branch.
+   *
+   * Kept distinct from `hasStaffBranchAssignment` on purpose: that one takes a
+   * `business_members.id` (what the RBAC branch-context middleware holds), while booking flows
+   * only know the staff profile id carried by the appointment segments. Both are plain `string`
+   * to TypeScript, so only the method name prevents one being passed where the other is expected
+   * — a mix-up that previously type-checked fine and made every dashboard booking fail with
+   * "Staff member ... is not assigned to branch ...".
+   */
+  isStaffMemberAssignedToBranch(
+    businessId: string,
+    staffMemberId: string,
+    branchId: string,
+  ): Promise<boolean>;
   isStaffMemberActive(businessId: string, staffMemberId: string): Promise<boolean>;
   isStaffMemberActive(staffMemberId: string): Promise<boolean>;
   isStaffMemberActive(businessIdOrStaffId: string, maybeStaffMemberId?: string): Promise<boolean>;
@@ -51,6 +66,22 @@ export class StaffQueryService implements IStaffQueryService {
     return await this.staffRepository.hasStaffBranchAssignment(
       businessId,
       businessMemberId,
+      branchId,
+    );
+  }
+
+  /**
+   * Verifies that an active STAFF PROFILE is assigned to the branch — see the interface note for
+   * why this is a separate method rather than a parameter of `hasStaffBranchAssignment`.
+   */
+  async isStaffMemberAssignedToBranch(
+    businessId: string,
+    staffMemberId: string,
+    branchId: string,
+  ): Promise<boolean> {
+    return await this.staffRepository.isStaffMemberAssignedToBranch(
+      businessId,
+      staffMemberId,
       branchId,
     );
   }

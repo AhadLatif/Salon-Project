@@ -73,6 +73,7 @@ describe('RescheduleAppointmentUseCase', () => {
       cancel: vi.fn(),
       transitionStatus: vi.fn(),
       deleteAllocations: vi.fn(),
+      completeForPayment: vi.fn(),
       ...overrides?.repo,
     };
 
@@ -88,6 +89,7 @@ describe('RescheduleAppointmentUseCase', () => {
     };
 
     const staffValidator: IStaffValidator = {
+      isStaffMemberAssignedToBranch: vi.fn().mockResolvedValue(true),
       isStaffMemberActive: vi.fn().mockResolvedValue(true),
       getStaffBookingSnapshots: vi.fn().mockResolvedValue([]),
       getStaffAvailabilitySchedule: vi.fn().mockResolvedValue([

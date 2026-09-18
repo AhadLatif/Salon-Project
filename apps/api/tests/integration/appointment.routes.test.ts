@@ -97,11 +97,15 @@ describe('Appointment API Routes Integration Tests', () => {
     serviceId = serviceResponse.body.data.service.id;
 
     // Assign service to branch
-    await request(app)
+    const serviceBranchRes = await request(app)
       .post(`/api/v1/businesses/${businessId}/services/${serviceId}/branches`)
       .set('Authorization', `Bearer ${accessToken}`)
       .set('x-business-id', businessId)
       .send({ branchId });
+    // Setup calls used to be fire-and-forget, so a failure here only surfaced much later as an
+    // unrelated 409 from the booking guard. Asserting at the point of the mistake keeps the real
+    // cause in the failure message instead of burying it several requests downstream.
+    expect(serviceBranchRes.status).toBe(201);
 
     // 6. Create staff member using the owner's auto-bootstrapped business member
     const member = await db.query.businessMembers.findFirst({
@@ -125,18 +129,20 @@ describe('Appointment API Routes Integration Tests', () => {
     staffMemberId = staffResponse.body.data.staff.id;
 
     // Assign staff member to branch
-    await request(app)
+    const staffBranchRes = await request(app)
       .post(`/api/v1/businesses/${businessId}/staff/${staffMemberId}/branches`)
       .set('Authorization', `Bearer ${accessToken}`)
       .set('x-business-id', businessId)
       .send({ branchId });
+    expect(staffBranchRes.status).toBe(201);
 
     // Assign service to staff member
-    await request(app)
+    const staffServiceRes = await request(app)
       .post(`/api/v1/businesses/${businessId}/staff/${staffMemberId}/services`)
       .set('Authorization', `Bearer ${accessToken}`)
       .set('x-business-id', businessId)
       .send({ serviceId });
+    expect(staffServiceRes.status).toBe(201);
   });
 
   describe('POST /api/v1/businesses/:businessId/appointments', () => {
@@ -246,6 +252,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const getRes = await request(app)
         .get(`/api/v1/businesses/${businessId}/appointments/${appointmentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId);
 
       expect(getRes.status).toBe(200);
@@ -258,6 +265,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const getRes = await request(app)
         .get(`/api/v1/businesses/${businessId}/appointments/00000000-0000-0000-0000-000000000000`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId);
 
       expect(getRes.status).toBe(404);
@@ -327,6 +335,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const checkInRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'checked_in', reason: 'Customer arrived' });
       expect(checkInRes.status).toBe(200);
@@ -336,6 +345,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const startRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'in_progress', reason: 'Service started' });
       expect(startRes.status).toBe(200);
@@ -345,6 +355,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const completeRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'completed', reason: 'Service completed' });
       expect(completeRes.status).toBe(200);
@@ -354,6 +365,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const invalidRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'confirmed' });
       expect(invalidRes.status).toBe(409);
@@ -400,6 +412,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const cancelRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/cancel`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ cancellationReason: 'Client called to cancel due to emergency' });
 
@@ -452,6 +465,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const rescheduleRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/reschedule`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({
           scheduledStartAt: newTime,
@@ -514,6 +528,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const conflictRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptAId}/reschedule`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({
           scheduledStartAt: '2030-11-02T11:00:00.000Z',
@@ -528,6 +543,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const detailRes = await request(app)
         .get(`/api/v1/businesses/${businessId}/appointments/${apptAId}`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId);
       expect(new Date(detailRes.body.data.appointment.scheduledStartAt).toISOString()).toBe(
         '2030-11-02T09:00:00.000Z',
@@ -553,6 +569,7 @@ describe('Appointment API Routes Integration Tests', () => {
       await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/cancel`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({});
 
@@ -560,6 +577,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const res = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/reschedule`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({
           scheduledStartAt: '2030-11-03T14:00:00.000Z',
@@ -628,6 +646,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const reschedRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${appointmentId}/reschedule`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({
           scheduledStartAt: '2030-11-04T14:00:00.000Z',
@@ -927,6 +946,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const illegalRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'completed' });
       expect(illegalRes.status).toBe(409);
@@ -935,18 +955,21 @@ describe('Appointment API Routes Integration Tests', () => {
       await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'checked_in' });
 
       await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'in_progress' });
 
       const compRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'completed' });
       expect(compRes.status).toBe(200);
@@ -955,6 +978,7 @@ describe('Appointment API Routes Integration Tests', () => {
       const reCompRes = await request(app)
         .post(`/api/v1/businesses/${businessId}/appointments/${apptId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
+        .set('x-branch-id', branchId)
         .set('x-business-id', businessId)
         .send({ status: 'completed' });
       expect(reCompRes.status).toBe(409);

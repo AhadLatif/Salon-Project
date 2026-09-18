@@ -186,15 +186,36 @@ export class StaffRepository implements IStaffRepository {
 
     if (!staff) return false;
 
+    return await this.isStaffMemberAssignedToBranch(businessId, staff.id, branchId);
+  }
+
+  /**
+   * Single-query primitive keyed on the identifier the assignments table actually stores.
+   *
+   * Replaces the previous two round-trips (resolve profile, then look up the assignment) for the
+   * booking path, where this runs once per segment inside the availability guard.
+   *
+   * The `businessId` condition is repeated on purpose even though the joined staff profile is
+   * already tenant-scoped: it lets the `idx_staff_branch_assignments_business`-style indexes do
+   * the narrowing instead of relying on the join alone.
+   */
+  async isStaffMemberAssignedToBranch(
+    businessId: string,
+    staffMemberId: string,
+    branchId: string,
+  ): Promise<boolean> {
     const [assignment] = await this.database
       .select({ id: staffBranchAssignments.id })
       .from(staffBranchAssignments)
+      .innerJoin(staffMembers, eq(staffMembers.id, staffBranchAssignments.staffMemberId))
       .where(
         and(
           eq(staffBranchAssignments.businessId, businessId),
-          eq(staffBranchAssignments.staffMemberId, staff.id),
+          eq(staffBranchAssignments.staffMemberId, staffMemberId),
           eq(staffBranchAssignments.branchId, branchId),
           isNull(staffBranchAssignments.unassignedAt),
+          // A terminated profile must not stay bookable even if its assignment row survives.
+          ne(staffMembers.status, 'terminated'),
         ),
       )
       .limit(1);

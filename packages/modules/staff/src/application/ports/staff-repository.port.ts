@@ -114,6 +114,22 @@ export interface IStaffRepository {
     businessMemberId: string,
     branchId: string,
   ): Promise<boolean>;
+  /**
+   * Whether an ACTIVE staff profile is currently assigned to a branch.
+   *
+   * Deliberately a separate method from `hasStaffBranchAssignment` rather than a rename, because
+   * the two callers arrive holding DIFFERENT identifiers: the RBAC branch-context middleware knows
+   * the logged-in member (`business_members.id`), while the appointment booking guard only holds
+   * the staff profile id taken from the booking segments (`staff_members.id`). Both are plain
+   * `string` to TypeScript, so nothing but the method name distinguishes them — which is exactly
+   * how one identifier came to be passed where the other was expected, type-checking cleanly while
+   * silently answering `false` for every row.
+   */
+  isStaffMemberAssignedToBranch(
+    businessId: string,
+    staffMemberId: string,
+    branchId: string,
+  ): Promise<boolean>;
   assignToBranch(
     businessId: string,
     staffMemberId: string,

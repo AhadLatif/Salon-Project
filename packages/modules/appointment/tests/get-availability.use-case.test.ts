@@ -54,6 +54,7 @@ describe('GetAvailabilityUseCase Integration Unit Tests', () => {
       transitionStatus: vi.fn(),
       reschedule: vi.fn(),
       deleteAllocations: vi.fn(),
+      completeForPayment: vi.fn(),
       findOccupiedAllocations: vi.fn().mockResolvedValue([]),
     };
 
@@ -64,11 +65,13 @@ describe('GetAvailabilityUseCase Integration Unit Tests', () => {
 
     serviceValidator = {
       isServiceInBusiness: vi.fn().mockResolvedValue(true),
+      isServiceBookableAtBranch: vi.fn().mockResolvedValue(true),
       getServiceSnapshots: vi.fn().mockResolvedValue([mockService]),
       getServiceDetails: vi.fn().mockResolvedValue(mockService),
     };
 
     staffValidator = {
+      isStaffMemberAssignedToBranch: vi.fn().mockResolvedValue(true),
       isStaffMemberActive: vi.fn().mockResolvedValue(true),
       getStaffBookingSnapshots: vi.fn().mockResolvedValue([]),
       getStaffAvailabilitySchedule: vi.fn().mockResolvedValue([mockStaffCandidate]),
