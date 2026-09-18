@@ -1,6 +1,6 @@
 import { type Database, payments, paymentTransactions, refunds } from '@salon/database';
 import { ConflictError, extractPostgresError, ResourceNotFoundError } from '@salon/shared';
-import { and, asc, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, lte } from 'drizzle-orm';
 import type {
   IPaymentRepository,
   PaymentFilters,
@@ -294,6 +294,13 @@ export class PaymentRepository implements IPaymentRepository {
         throw new ConflictError('Refund amount exceeds the available refundable balance.');
       }
 
+      // Cash refunds have no external provider id, so `gateway` and `gatewayRefundId` are
+      // deliberately left NULL here.
+      //
+      // Any future GATEWAY refund (e.g. Stripe) must set BOTH of them together.
+      // `uq_refunds_gateway` is keyed on (gateway, gateway_refund_id), so writing a refund id
+      // without its gateway would drop the row into the '__drizzle_null__' bucket, where it
+      // would collide with unrelated cash refunds instead of being scoped to its provider.
       await tx.insert(refunds).values({
         businessId,
         paymentTransactionId: txn.id,
