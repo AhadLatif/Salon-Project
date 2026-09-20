@@ -22,7 +22,7 @@ declare global {
  *   - req.headers.authorization: string ('Bearer <accessToken>')
  *
  * @mutates
- *   - req.user: TokenPayload ({ sub: userId, email, tokenVersion })
+ *   - req.user: TokenPayload ({ userId, email })
  *
  * @exits
  *   - Calls `next()` if access token is valid and unexpired.

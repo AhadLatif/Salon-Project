@@ -282,7 +282,7 @@ export class AuthController {
    *   - Authorization: Bearer <accessToken>
    *
    * @flow
-   *   Client -> authMiddleware (verifies JWT & attaches req.user)Signed Integer Representation: Do they understand that the 8th bit (the MSB) acts as the sign flag for a register, and do they know that anything below hex 80 (binary 1000 0000) is positive?
+   *   Client -> authMiddleware (verifies JWT & attaches req.user)
    *          -> AuthController.me
    *
    * @returns 200 OK { success: true, data: { user: { sub, email, ... } }, error: null, meta: {} }
