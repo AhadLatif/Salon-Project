@@ -211,7 +211,8 @@ module.exports = {
 
     {
       name: 'marketplace-dependencies',
-      comment: 'Marketplace may depend only on Business, Branch, Staff, Service and Review.',
+      comment:
+        'Marketplace may depend only on Business, Branch, Staff, Service and Review (module imports). NOTE (DECISION-006): Marketplace additionally holds the single sanctioned READ-ONLY exception to the module database boundary - its repository may read, never write, foreign tables.',
       severity: 'error',
       from: { path: MARKETPLACE },
       to: {
@@ -463,9 +464,21 @@ module.exports = {
       },
     },
 
+    // ---------------------------------------------------------------------
+    // DECISION-006 — the single, sanctioned exception (do not "fix" it).
+    //
+    // `@salon/marketplace` is a read-oriented (Pattern C) discovery module. Its repository performs
+    // READ-ONLY, TENANT-SCOPED queries over foreign tables (businesses, branches, services, staff_members,
+    // reviews) because real search/filter/sort/pagination cannot be assembled from per-module query ports.
+    //
+    // This rule inspects *imports*, not SQL. The shared schema lives under `packages/infrastructure/`, which is
+    // already in `pathNot` below — so Marketplace's cross-module reads pass this rule by design.
+    // READS are sanctioned for Marketplace only. WRITES to foreign tables remain forbidden for EVERY module.
+    // ---------------------------------------------------------------------
     {
       name: 'modules-cannot-access-other-module-database',
-      comment: "Business modules must never access another module's database implementation.",
+      comment:
+        "Business modules must never access another module's database implementation. EXCEPTION (DECISION-006): @salon/marketplace may READ (never write) foreign tables for public discovery.",
       severity: 'error',
       from: {
         path: '^packages/modules/([^/]+)/',
