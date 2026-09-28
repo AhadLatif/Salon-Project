@@ -96,6 +96,7 @@ export class BusinessRepository implements IBusinessRepository {
         description: businesses.description,
         socialLinks: businesses.socialLinks,
         status: businesses.status,
+        isPublished: businesses.isPublished,
         createdAt: businesses.createdAt,
         updatedAt: businesses.updatedAt,
         ownerUserId: businessMembers.userId,
@@ -121,6 +122,7 @@ export class BusinessRepository implements IBusinessRepository {
     if (data.email !== undefined) updatePayload.email = data.email;
     if (data.phoneNumber !== undefined) updatePayload.phoneNumber = data.phoneNumber;
     if (data.socialLinks !== undefined) updatePayload.socialLinks = data.socialLinks;
+    if (data.isPublished !== undefined) updatePayload.isPublished = data.isPublished;
 
     if (Object.keys(updatePayload).length === 0) {
       return this.findById(id);

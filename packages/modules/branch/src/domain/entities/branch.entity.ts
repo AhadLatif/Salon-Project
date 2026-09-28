@@ -21,6 +21,7 @@ export interface BranchProps {
   email: string | null;
   timezone: string; // e.g., 'America/New_York'
   currency: string; // e.g., 'USD'
+  isPublished: boolean;
   addressLine1: string;
   addressLine2: string | null;
   city: string;
@@ -54,6 +55,7 @@ export class BranchEntity {
   public readonly countryCode: string;
   public readonly latitude: string | null;
   public readonly longitude: string | null;
+  public readonly isPublished: boolean;
   public readonly status: BranchStatus;
 
   public readonly openingHours: OpeningHourProps[];
@@ -69,6 +71,7 @@ export class BranchEntity {
     this.email = props.email;
     this.timezone = props.timezone;
     this.currency = props.currency;
+    this.isPublished = props.isPublished;
     this.addressLine1 = props.addressLine1;
     this.addressLine2 = props.addressLine2;
     this.city = props.city;
@@ -221,6 +224,7 @@ export class BranchEntity {
       countryCode: this.countryCode,
       latitude: this.latitude,
       longitude: this.longitude,
+      isPublished: this.isPublished,
       status: this.status,
       openingHours: this.openingHours.map((h) => ({
         dayOfWeek: h.dayOfWeek,

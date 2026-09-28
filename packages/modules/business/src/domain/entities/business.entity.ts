@@ -7,6 +7,7 @@ export interface BusinessProps {
   email: string;
   phoneNumber: string;
   status: 'pending' | 'active' | 'suspended' | 'archived';
+  isPublished: boolean;
   socialLinks?: Record<string, string> | null;
   verifiedAt?: Date | null;
   createdAt: Date;
@@ -39,6 +40,9 @@ export class BusinessEntity {
   }
   get status(): 'pending' | 'active' | 'suspended' | 'archived' {
     return this.props.status;
+  }
+  get isPublished(): boolean {
+    return this.props.isPublished;
   }
   get socialLinks(): Record<string, string> | null | undefined {
     return this.props.socialLinks;

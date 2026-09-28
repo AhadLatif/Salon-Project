@@ -67,6 +67,7 @@ export class BranchRepository implements IBranchRepository {
           countryCode: data.countryCode,
           latitude: data.latitude ?? null,
           longitude: data.longitude ?? null,
+          isPublished: false,
           status: 'active',
           createdAt: new Date(),
           updatedAt: new Date(),

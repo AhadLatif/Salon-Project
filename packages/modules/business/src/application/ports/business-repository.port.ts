@@ -17,6 +17,7 @@ export interface UpdateBusinessData {
   description?: string | null | undefined;
   email?: string | undefined;
   phoneNumber?: string | undefined;
+  isPublished?: boolean | undefined;
   socialLinks?: Record<string, string> | null | undefined;
 }
 
