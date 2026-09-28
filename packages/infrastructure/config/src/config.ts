@@ -43,6 +43,9 @@ export const config = Object.freeze({
   app: Object.freeze({
     name: parsed.data.APP_NAME,
     environment: parsed.data.NODE_ENV,
+    // Reverse-proxy hops in front of the API (0 = none). Used by `app.set('trust proxy', …)`
+    // so rate limiting keys on the real client IP.
+    trustProxyHops: parsed.data.TRUST_PROXY_HOPS,
   }),
   secret: Object.freeze({
     jwt: parsed.data.JWT_SECRET,
@@ -53,5 +56,13 @@ export const config = Object.freeze({
   }),
   database: Object.freeze({
     url: parsed.data.DATABASE_URL,
+  }),
+
+  marketplace: Object.freeze({
+    corsOrigins: parsed.data.MARKETPLACE_CORS_ORIGINS,
+    rateLimit: Object.freeze({
+      max: parsed.data.MARKETPLACE_RATE_LIMIT_MAX,
+      windowMs: parsed.data.MARKETPLACE_RATE_LIMIT_WINDOW_MS,
+    }),
   }),
 });
