@@ -21,9 +21,16 @@ export class BusinessValidationService implements IBusinessValidationService {
 
   /**
    * Verifies that a business tenant exists.
+   *
+   * Delegates to the repository's purpose-built existence probe rather than loading the entire row
+   * and constructing a domain entity just to answer a boolean.
+   *
+   * SEMANTICS: existence only — a `suspended` or `archived` business still counts as existing.
+   * Callers that must refuse a non-active tenant apply that rule themselves (the customer and branch
+   * validators do). Making this active-only is a product decision, and it would have to be taken
+   * consistently across all three modules, so it is deliberately not assumed here.
    */
   async businessExists(businessId: string): Promise<boolean> {
-    const business = await this.businessRepository.findById(businessId);
-    return Boolean(business);
+    return await this.businessRepository.exists(businessId);
   }
 }
