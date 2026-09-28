@@ -74,7 +74,7 @@ export class StaffMemberController {
    *          -> StaffMemberController.create
    *          -> validateBody(createStaffMemberSchema)
    *          -> CreateStaffMemberUseCase.execute
-   *          -> BusinessValidationService (verifies businessMemberId belongs to businessId)
+   *          -> BusinessQueryService (verifies businessMemberId belongs to businessId)
    *          -> StaffRepository.create
    *
    * @returns 201 Created { success: true, data: { staff: { id, displayName, ... } }, meta: {} }

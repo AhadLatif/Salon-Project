@@ -10,7 +10,7 @@ export interface ServiceSnapshot {
   isActive: boolean;
 }
 
-export interface IServiceValidationService {
+export interface IServiceQueryService {
   isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean>;
   isServiceBookableAtBranch(
     businessId: string,
@@ -25,7 +25,7 @@ export interface IServiceValidationService {
  * Service providing cross-module service catalog validation.
  * Encapsulates service existence, active status, and tenant isolation rules.
  */
-export class ServiceValidationService implements IServiceValidationService {
+export class ServiceQueryService implements IServiceQueryService {
   constructor(private readonly serviceRepository: IServiceRepository) {}
 
   /**

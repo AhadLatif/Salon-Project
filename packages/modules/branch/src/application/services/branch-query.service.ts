@@ -8,7 +8,7 @@ export interface BranchOpeningHoursSnapshot {
   timezone?: string;
 }
 
-export interface IBranchValidationService {
+export interface IBranchQueryService {
   isBranchInBusiness(businessId: string, branchId: string): Promise<boolean>;
   getBranchOpeningHoursForDay(
     businessId: string,
@@ -21,7 +21,7 @@ export interface IBranchValidationService {
  * Service providing cross-module branch validation.
  * Encapsulates branch existence, tenant scoping, and status checks (excluding archived branches).
  */
-export class BranchValidationService implements IBranchValidationService {
+export class BranchQueryService implements IBranchQueryService {
   constructor(private readonly branchRepository: IBranchRepository) {}
 
   /**

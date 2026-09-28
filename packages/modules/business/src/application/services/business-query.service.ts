@@ -1,6 +1,6 @@
 import type { IBusinessRepository } from '../ports/business-repository.port.js';
 
-export interface IBusinessValidationService {
+export interface IBusinessQueryService {
   isBusinessMemberInBusiness(businessId: string, businessMemberId: string): Promise<boolean>;
   businessExists(businessId: string): Promise<boolean>;
 }
@@ -9,7 +9,7 @@ export interface IBusinessValidationService {
  * Service providing cross-module business validation.
  * Encapsulates tenant membership checks and workspace isolation rules.
  */
-export class BusinessValidationService implements IBusinessValidationService {
+export class BusinessQueryService implements IBusinessQueryService {
   constructor(private readonly businessRepository: IBusinessRepository) {}
 
   /**

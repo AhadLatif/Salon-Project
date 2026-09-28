@@ -113,7 +113,7 @@ export class BusinessRepository implements IBusinessRepository {
    * SEMANTICS — deliberately "does this tenant exist", NOT "is this tenant usable". A business with
    * status `suspended` or `archived` still returns `true`; blocking those is a product rule that
    * must be decided and applied deliberately (see the active-only checks in
-   * `CustomerQueryService.isCustomerInBusiness` and `BranchValidationService`), not smuggled in here.
+   * `CustomerQueryService.isCustomerInBusiness` and `BranchQueryService`), not smuggled in here.
    */
   async exists(id: string): Promise<boolean> {
     const [row] = await this.database
