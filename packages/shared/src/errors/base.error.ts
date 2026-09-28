@@ -147,3 +147,8 @@ export class InternalServerError extends AppError {
     super(message, { code: 'INTERNAL_SERVER_ERROR', cause, isOperational: false });
   }
 }
+export class TooManyRequestsError extends AppError {
+  constructor(message = 'Too many requests. Please try again later.') {
+    super(message, { code: 'TOO_MANY_REQUESTS' });
+  }
+}

@@ -1,6 +1,6 @@
 import { UnauthorizedError } from '@salon/shared';
 import type { Request } from 'express';
-import type { ITokenService, TokenPayload } from '../../application/ports/token-service.port.js';
+import type { ITokenVerifier, TokenPayload } from '../../application/ports/token-service.port.js';
 
 /**
  * Extracts the `Authorization: Bearer <token>` header from the request and
@@ -11,7 +11,7 @@ import type { ITokenService, TokenPayload } from '../../application/ports/token-
  *
  * Returns the verified token payload, or throws `UnauthorizedError`.
  */
-export function resolveAuthenticatedUser(req: Request, tokenService: ITokenService): TokenPayload {
+export function resolveAuthenticatedUser(req: Request, tokenService: ITokenVerifier): TokenPayload {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.toLowerCase().startsWith('bearer ')) {
