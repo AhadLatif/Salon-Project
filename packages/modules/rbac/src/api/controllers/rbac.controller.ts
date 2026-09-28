@@ -1,4 +1,4 @@
-import { getTenantContext, getUuidParam, validateBody } from '@salon/shared';
+import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { CreateCustomRoleUseCase } from '../../application/use-cases/create-custom-role.use-case.js';
 import type { GetBusinessRolesUseCase } from '../../application/use-cases/get-business-roles.use-case.js';
@@ -35,15 +35,7 @@ export class RbacController {
     try {
       const catalog = await this.getPermissionsCatalogUseCase.execute();
 
-      res.status(200).json({
-        success: true,
-        data: {
-          permissions: catalog,
-        },
-        meta: {
-          total: catalog.length,
-        },
-      });
+      respondOk(res, 200, { permissions: catalog }, { total: catalog.length });
     } catch (error) {
       next(error);
     }
@@ -75,15 +67,7 @@ export class RbacController {
 
       const roles = await this.getBusinessRolesUseCase.execute(businessId);
 
-      res.status(200).json({
-        success: true,
-        data: {
-          roles: roles.map((r) => r.toPrimitives()),
-        },
-        meta: {
-          total: roles.length,
-        },
-      });
+      respondOk(res, 200, { roles: roles.map((r) => r.toPrimitives()) }, { total: roles.length });
     } catch (error) {
       next(error);
     }
@@ -128,13 +112,7 @@ export class RbacController {
         permissionCodes: data.permissions,
       });
 
-      res.status(201).json({
-        success: true,
-        data: {
-          role: role.toPrimitives(),
-        },
-        meta: {},
-      });
+      respondOk(res, 201, { role: role.toPrimitives() });
     } catch (error) {
       next(error);
     }
@@ -181,13 +159,7 @@ export class RbacController {
         data.permissions,
       );
 
-      res.status(200).json({
-        success: true,
-        data: {
-          role: role.toPrimitives(),
-        },
-        meta: {},
-      });
+      respondOk(res, 200, { role: role.toPrimitives() });
     } catch (error) {
       next(error);
     }

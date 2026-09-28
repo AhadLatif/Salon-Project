@@ -1,5 +1,5 @@
 import type { TokenPayload } from '@salon/identity';
-import { getTenantContext, UnauthorizedError, validateBody } from '@salon/shared';
+import { getTenantContext, respondOk, UnauthorizedError, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
 import type { CreateBusinessUseCase } from '../../application/use-cases/create-business.use-case.js';
 import type { GetBusinessByIdUseCase } from '../../application/use-cases/get-business-by-id.use-case.js';
@@ -73,13 +73,7 @@ export class BusinessController {
         },
       });
 
-      res.status(201).json({
-        success: true,
-        data: {
-          business: result.toPrimitives(),
-        },
-        meta: {},
-      });
+      respondOk(res, 201, { business: result.toPrimitives() });
     } catch (error) {
       next(error);
     }
@@ -109,15 +103,12 @@ export class BusinessController {
 
       const businesses = await this.getMyBusinessesUseCase.execute(req.user.userId);
 
-      res.status(200).json({
-        success: true,
-        data: {
-          businesses: businesses.map((b) => b.toPrimitives()),
-        },
-        meta: {
-          total: businesses.length,
-        },
-      });
+      respondOk(
+        res,
+        200,
+        { businesses: businesses.map((b) => b.toPrimitives()) },
+        { total: businesses.length },
+      );
     } catch (error) {
       next(error);
     }
@@ -152,13 +143,7 @@ export class BusinessController {
 
       const business = await this.getBusinessByIdUseCase.execute(businessId);
 
-      res.status(200).json({
-        success: true,
-        data: {
-          business: business.toPrimitives(),
-        },
-        meta: {},
-      });
+      respondOk(res, 200, { business: business.toPrimitives() });
     } catch (error) {
       next(error);
     }
@@ -201,13 +186,7 @@ export class BusinessController {
 
       const updatedBusiness = await this.updateBusinessUseCase.execute(businessId, data);
 
-      res.status(200).json({
-        success: true,
-        data: {
-          business: updatedBusiness.toPrimitives(),
-        },
-        meta: {},
-      });
+      respondOk(res, 200, { business: updatedBusiness.toPrimitives() });
     } catch (error) {
       next(error);
     }

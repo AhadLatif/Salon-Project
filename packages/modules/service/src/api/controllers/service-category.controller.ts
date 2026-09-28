@@ -1,4 +1,4 @@
-import { getTenantContext, getUuidParam, validateBody } from '@salon/shared';
+import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { Request, Response } from 'express';
 import type { CreateCategoryUseCase } from '../../application/use-cases/create-category.use-case.js';
 import type { DeactivateCategoryUseCase } from '../../application/use-cases/deactivate-category.use-case.js';
@@ -49,11 +49,7 @@ export class ServiceCategoryController {
       businessId,
     });
 
-    res.status(201).json({
-      success: true,
-      data: { category: category.toPrimitives() },
-      meta: {},
-    });
+    respondOk(res, 201, { category: category.toPrimitives() });
   };
 
   /**
@@ -85,11 +81,7 @@ export class ServiceCategoryController {
 
     const categories = await this.getCategoriesUseCase.execute(businessId, { includeInactive });
 
-    res.status(200).json({
-      success: true,
-      data: { categories: categories.map((c) => c.toPrimitives()) },
-      meta: {},
-    });
+    respondOk(res, 200, { categories: categories.map((c) => c.toPrimitives()) });
   };
 
   /**
@@ -125,11 +117,7 @@ export class ServiceCategoryController {
 
     const category = await this.updateCategoryUseCase.execute(businessId, categoryId, data);
 
-    res.status(200).json({
-      success: true,
-      data: { category: category.toPrimitives() },
-      meta: {},
-    });
+    respondOk(res, 200, { category: category.toPrimitives() });
   };
 
   /**
