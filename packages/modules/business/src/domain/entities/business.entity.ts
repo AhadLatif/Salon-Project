@@ -37,6 +37,7 @@ export interface BusinessEntity {
   email: string;
   phoneNumber: string;
   status: BusinessStatus;
+  isPublished: boolean;
   socialLinks: Record<string, string> | null;
   verifiedAt: Date | null;
   createdAt: Date;

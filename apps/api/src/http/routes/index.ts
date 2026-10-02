@@ -5,6 +5,7 @@ import { config } from '@salon/config';
 import { createCustomerModule } from '@salon/customer';
 import { db } from '@salon/database';
 import { createIdentityModule } from '@salon/identity';
+import { createMarketplaceModule } from '@salon/marketplace';
 import { createPaymentModule } from '@salon/payment';
 import {
   createRbacModule,
@@ -15,6 +16,8 @@ import { createServiceModule } from '@salon/service';
 import { createStaffModule, type IStaffQueryService } from '@salon/staff';
 import type { Express } from 'express';
 import { Router } from 'express';
+import { marketplaceRateLimiter } from '../middlewares/marketplace-rate-limiter.js';
+import { createOptionalAuthMiddleware } from '../middlewares/optional-auth.middleware.js';
 import { registerHealthRoutes } from './health.route.js';
 
 /**
@@ -150,6 +153,12 @@ export function initializeModules(app: Express): void {
     businessMemberValidator: businessModule.businessQueryService,
   });
 
+  const optionalAuthMiddleware = createOptionalAuthMiddleware(identityModule.tokenService);
+  const marketPlaceModule = createMarketplaceModule({
+    optionalAuth: optionalAuthMiddleware,
+    database: db,
+  });
+
   // 9. Mount Module Routers onto API Pipeline (/api/v1)
   const v1Router = Router();
 
@@ -171,6 +180,7 @@ export function initializeModules(app: Express): void {
     paymentModule.appointmentPaymentRouter,
   );
   v1Router.use('/favorites', customerModule.favoriteRouter);
+  v1Router.use('/marketplace', marketplaceRateLimiter, marketPlaceModule.marketplaceRouter);
 
   app.use('/api/v1', v1Router);
 }

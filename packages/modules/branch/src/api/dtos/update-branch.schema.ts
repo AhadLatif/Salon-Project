@@ -16,6 +16,7 @@ export const updateBranchSchema = z
     city: z.string().trim().min(1).max(100).optional(),
     state: z.string().trim().max(100).nullable().optional(),
     postalCode: z.string().trim().max(20).nullable().optional(),
+    isPublished: z.boolean().optional(),
     countryCode: z
       .string()
       .trim()

@@ -7,6 +7,7 @@ import {
   type RuntimeEnvironment,
 } from './api/cookies/refresh-cookie.js';
 import { createAuthMiddleware } from './api/middlewares/auth.middleware.js';
+import type { ITokenVerifier } from './application/ports/token-service.port.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
 import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case.js';
@@ -38,7 +39,10 @@ export * from './domain/entities/user.entity.js';
 export * from './domain/session-policy.js';
 export * from './infrastructure/repositories/session.repository.js';
 export * from './infrastructure/repositories/user.repository.js';
-export * from './infrastructure/services/auth/jwt.service.js';
+
+// NOTE: `JwtService` is deliberately NOT re-exported. Consumers receive it as `ITokenVerifier`
+// (see `IdentityModule.tokenService`), so the concrete implementation and its ability to
+// generate/hash tokens stay inside this module.
 export * from './infrastructure/services/auth/password.services.js';
 
 // --- 2. DEFINE MODULE DEPENDENCIES CONTRACT ---
@@ -55,6 +59,12 @@ export interface IdentityModuleDependencies {
 export interface IdentityModule {
   authRouter: Router;
   authMiddleware: ReturnType<typeof createAuthMiddleware>;
+  /**
+   * Exposed as the narrow verifier port, not the concrete `JwtService`. Callers authenticate;
+   * they must not be able to mint or hash tokens. The concrete class is intentionally NOT
+   * re-exported from this barrel — instantiate it here, hand out the port.
+   */
+  tokenService: ITokenVerifier;
   useCases: {
     registerUserUseCase: RegisterUserUseCase;
     loginUseCase: LoginUseCase;
@@ -114,6 +124,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
   return {
     authRouter,
     authMiddleware,
+    tokenService: jwtService,
     useCases: {
       registerUserUseCase,
       loginUseCase,

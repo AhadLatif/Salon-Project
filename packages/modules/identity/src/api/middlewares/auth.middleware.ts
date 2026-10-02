@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { ITokenService, TokenPayload } from '../../application/ports/token-service.port.js';
+import type { ITokenVerifier, TokenPayload } from '../../application/ports/token-service.port.js';
 import { resolveAuthenticatedUser } from '../controllers/bearer-token.extractor.js';
 
 // Augment Express Request to include the authenticated user.
@@ -28,7 +28,7 @@ declare global {
  *   - Calls `next()` if access token is valid and unexpired.
  *   - Passes `UnauthorizedError` (401) to `next(error)` if header is missing, malformed, or token has expired.
  */
-export function createAuthMiddleware(tokenService: ITokenService) {
+export function createAuthMiddleware(tokenService: ITokenVerifier) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       req.user = resolveAuthenticatedUser(req, tokenService);

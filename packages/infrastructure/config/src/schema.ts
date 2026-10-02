@@ -32,6 +32,22 @@ export const environmentSchema = z.object({
   DATABASE_URL: z.url({
     protocol: /^postgres(?:ql)?$/,
   }),
+
+  // --- Marketplace Config ---
+  MARKETPLACE_CORS_ORIGINS: z
+    .string()
+    .min(1)
+    .default('http://localhost:3001')
+    .transform((str) => str.split(',').map((s) => s.trim())),
+
+  MARKETPLACE_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
+  MARKETPLACE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60000),
+
+  // --- Reverse proxy ---
+  // Number of trusted reverse-proxy hops in front of the API (0 = none, local dev).
+  // Needed for correct client IPs; trusting the whole X-Forwarded-For chain would let
+  // clients spoof their IP and bypass rate limiting. See ADR-013.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
