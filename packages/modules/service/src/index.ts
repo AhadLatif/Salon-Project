@@ -6,9 +6,9 @@ import { ServiceCategoryController } from './api/controllers/service-category.co
 import { serviceOpenApiRegistry } from './api/docs/service.openapi.js';
 import type { IBranchValidator } from './application/ports/branch-validator.port.js';
 import {
-  type IServiceValidationService,
-  ServiceValidationService,
-} from './application/services/service-validation.service.js';
+  type IServiceQueryService,
+  ServiceQueryService,
+} from './application/services/service-query.service.js';
 import { AssignServiceToBranchUseCase } from './application/use-cases/assign-service-to-branch.use-case.js';
 import { CreateCategoryUseCase } from './application/use-cases/create-category.use-case.js';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case.js';
@@ -36,7 +36,7 @@ export * from './api/dtos/update-service.schema.js';
 export * from './application/ports/branch-validator.port.js';
 export * from './application/ports/service-category-repository.port.js';
 export * from './application/ports/service-repository.port.js';
-export * from './application/services/service-validation.service.js';
+export * from './application/services/service-query.service.js';
 export * from './application/use-cases/assign-service-to-branch.use-case.js';
 export * from './application/use-cases/create-category.use-case.js';
 export * from './application/use-cases/create-service.use-case.js';
@@ -66,7 +66,7 @@ export interface ServiceModuleDependencies {
 
 export interface ServiceModule {
   serviceRouter: Router;
-  serviceValidationService: IServiceValidationService;
+  serviceQueryService: IServiceQueryService;
   useCases: {
     createCategoryUseCase: CreateCategoryUseCase;
     getCategoriesUseCase: GetCategoriesUseCase;
@@ -87,7 +87,7 @@ export function createServiceModule(deps: ServiceModuleDependencies): ServiceMod
   // 1. Repositories & Services
   const categoryRepo = new ServiceCategoryRepository(deps.database);
   const serviceRepo = new ServiceRepository(deps.database);
-  const serviceValidationService = new ServiceValidationService(serviceRepo);
+  const serviceQueryService = new ServiceQueryService(serviceRepo);
 
   // 2. Use Cases (Categories)
   const createCategoryUseCase = new CreateCategoryUseCase(categoryRepo);
@@ -204,7 +204,7 @@ export function createServiceModule(deps: ServiceModuleDependencies): ServiceMod
 
   return {
     serviceRouter: router,
-    serviceValidationService,
+    serviceQueryService,
     useCases: {
       createCategoryUseCase,
       getCategoriesUseCase,

@@ -5,75 +5,55 @@ import type {
   IBranchRepository,
   UpdateBranchData,
 } from '../../application/ports/branch-repository.port.js';
-import {
-  BranchEntity,
-  type BranchProps,
-  type OpeningHourProps,
-} from '../../domain/entities/branch.entity.js';
+import type { BranchEntity, OpeningHourProps } from '../../domain/entities/branch.entity.js';
+import { assertValidBranch } from '../../domain/policies/branch.policy.js';
 
 export class BranchRepository implements IBranchRepository {
   constructor(private readonly database: typeof db) {}
 
   /**
-   * Transforms raw database rows into our rich Domain Entity.
+   * Transforms raw database rows into the branch domain shape.
+   *
+   * The row IS the entity now, so this only assembles `openingHours` and enforces the invariants —
+   * previously the rules ran inside `BranchEntity`'s constructor, which is why this function used to
+   * end in `} as BranchProps)` (an unchecked cast that would have accepted a row the entity did not
+   * actually describe).
    */
   private toDomainEntity(
     branchRow: typeof branches.$inferSelect,
     hoursRows: (typeof openingHours.$inferSelect)[] = [],
   ): BranchEntity {
-    return new BranchEntity({
+    const branch: BranchEntity = {
       ...branchRow,
       openingHours: hoursRows.map((h) => ({
         ...h,
         // Drizzle might return dates or strings for times depending on pg driver settings,
         // so we just pass them through safely.
       })),
-    } as BranchProps);
+    };
+
+    assertValidBranch(branch);
+
+    return branch;
   }
 
   async create(data: CreateBranchData): Promise<BranchEntity> {
     // We use a transaction because creating a branch without opening hours
     // is an invalid business state in our domain.
     return await this.database.transaction(async (tx) => {
-      const dummyBranchId = '00000000-0000-0000-0000-000000000000';
-      const hoursToInsert = data.openingHours.map((hours, index) => ({
+      // Validate business rules BEFORE touching the database.
+      //
+      // This previously fabricated an entire entity — a hard-coded placeholder UUID plus synthetic
+      // hour ids (`...000${index}`) — purely so the constructor's validator would run. The policy
+      // takes exactly the fields it inspects, so the prospective branch is validated directly: no
+      // fake row, no dummy ids, and no chance of a fabricated value making an invalid branch pass.
+      assertValidBranch({
         businessId: data.businessId,
-        branchId: dummyBranchId,
-        dayOfWeek: hours.dayOfWeek,
-        shiftName: hours.shiftName ?? null,
-        isClosed: hours.isClosed,
-        opensAt: hours.opensAt ?? null,
-        closesAt: hours.closesAt ?? null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        id: `00000000-0000-0000-0000-00000000000${index}`,
-      }));
-
-      // Validate business rules BEFORE inserting into database
-      this.toDomainEntity(
-        {
-          id: dummyBranchId,
-          businessId: data.businessId,
-          name: data.name,
-          phoneNumber: data.phoneNumber ?? null,
-          email: data.email ?? null,
-          timezone: data.timezone,
-          currency: data.currency,
-          addressLine1: data.addressLine1,
-          addressLine2: data.addressLine2 ?? null,
-          city: data.city,
-          state: data.state ?? null,
-          postalCode: data.postalCode ?? null,
-          countryCode: data.countryCode,
-          latitude: data.latitude ?? null,
-          longitude: data.longitude ?? null,
-          isPublished: false,
-          status: 'active',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        hoursToInsert,
-      );
+        name: data.name,
+        countryCode: data.countryCode,
+        currency: data.currency,
+        openingHours: data.openingHours,
+      });
 
       const [newBranch] = await tx
         .insert(branches)

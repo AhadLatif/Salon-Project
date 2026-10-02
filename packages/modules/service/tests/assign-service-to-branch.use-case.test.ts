@@ -1,4 +1,4 @@
-import { BranchRepository, BranchValidationService } from '@salon/branch';
+import { BranchQueryService, BranchRepository } from '@salon/branch';
 import { db } from '@salon/database';
 import { ConflictError, ForbiddenError } from '@salon/shared';
 import { createTestBranch, createTestBusiness, truncateAllTables } from '@salon/testing';
@@ -10,7 +10,7 @@ import { ServiceCategoryRepository } from '../src/infrastructure/repositories/se
 describe('AssignServiceToBranchUseCase Integration Tests', () => {
   let categoryRepo: ServiceCategoryRepository;
   let serviceRepo: ServiceRepository;
-  let branchValidator: BranchValidationService;
+  let branchValidator: BranchQueryService;
   let useCase: AssignServiceToBranchUseCase;
 
   beforeEach(async () => {
@@ -18,7 +18,7 @@ describe('AssignServiceToBranchUseCase Integration Tests', () => {
     categoryRepo = new ServiceCategoryRepository(db);
     serviceRepo = new ServiceRepository(db);
     const branchRepo = new BranchRepository(db);
-    branchValidator = new BranchValidationService(branchRepo);
+    branchValidator = new BranchQueryService(branchRepo);
     useCase = new AssignServiceToBranchUseCase(serviceRepo, branchValidator);
   });
 

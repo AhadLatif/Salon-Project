@@ -1,5 +1,12 @@
-import { getTenantContext, getUuidParam, getUuidQuery, validateBody } from '@salon/shared';
+import {
+  getTenantContext,
+  getUuidParam,
+  getUuidQuery,
+  respondOk,
+  validateBody,
+} from '@salon/shared';
 import type { Request, Response } from 'express';
+import { toServiceResponse } from '../../application/presenters/service.presenter.js';
 import type { AssignServiceToBranchUseCase } from '../../application/use-cases/assign-service-to-branch.use-case.js';
 import type { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case.js';
 import type { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case.js';
@@ -64,11 +71,7 @@ export class ServiceController {
       businessId,
     });
 
-    res.status(201).json({
-      success: true,
-      data: { service: service.toPrimitives() },
-      meta: {},
-    });
+    respondOk(res, 201, { service: toServiceResponse(service) });
   };
 
   /**
@@ -98,11 +101,7 @@ export class ServiceController {
 
     const service = await this.getServiceByIdUseCase.execute(businessId, serviceId);
 
-    res.status(200).json({
-      success: true,
-      data: { service: service.toPrimitives() },
-      meta: {},
-    });
+    respondOk(res, 200, { service: toServiceResponse(service) });
   };
 
   /**
@@ -142,11 +141,7 @@ export class ServiceController {
 
     const services = await this.getServicesUseCase.execute(businessId, options);
 
-    res.status(200).json({
-      success: true,
-      data: { services: services.map((s) => s.toPrimitives()) },
-      meta: {},
-    });
+    respondOk(res, 200, { services: services.map((s) => toServiceResponse(s)) });
   };
 
   /**
@@ -180,11 +175,7 @@ export class ServiceController {
 
     const service = await this.updateServiceUseCase.execute(businessId, serviceId, data);
 
-    res.status(200).json({
-      success: true,
-      data: { service: service.toPrimitives() },
-      meta: {},
-    });
+    respondOk(res, 200, { service: toServiceResponse(service) });
   };
 
   /**
@@ -256,11 +247,7 @@ export class ServiceController {
       data.isBookable,
     );
 
-    res.status(201).json({
-      success: true,
-      data: { branchId: data.branchId, serviceId },
-      meta: {},
-    });
+    respondOk(res, 201, { branchId: data.branchId, serviceId });
   };
 
   /**
@@ -323,10 +310,6 @@ export class ServiceController {
       serviceId,
     );
 
-    res.status(200).json({
-      success: true,
-      data: { assignments },
-      meta: {},
-    });
+    respondOk(res, 200, { assignments });
   };
 }

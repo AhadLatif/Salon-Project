@@ -3,9 +3,9 @@ import { type RequestHandler, Router } from 'express';
 import { BusinessController } from './api/controllers/business.controller.js';
 import { createTenantMiddleware } from './api/middlewares/tenant.middleware.js';
 import {
-  BusinessValidationService,
-  type IBusinessValidationService,
-} from './application/services/business-validation.service.js';
+  BusinessQueryService,
+  type IBusinessQueryService,
+} from './application/services/business-query.service.js';
 import { CreateBusinessUseCase } from './application/use-cases/create-business.use-case.js';
 import { GetBusinessByIdUseCase } from './application/use-cases/get-business-by-id.use-case.js';
 import { GetMyBusinessesUseCase } from './application/use-cases/get-my-businesses.use-case.js';
@@ -19,7 +19,7 @@ export * from './api/dtos/create-business.schema.js';
 export * from './api/dtos/update-business.schema.js';
 export * from './api/middlewares/tenant.middleware.js';
 export * from './application/ports/business-repository.port.js';
-export * from './application/services/business-validation.service.js';
+export * from './application/services/business-query.service.js';
 export * from './application/use-cases/create-business.use-case.js';
 export * from './application/use-cases/get-business-by-id.use-case.js';
 export * from './application/use-cases/get-my-businesses.use-case.js';
@@ -36,7 +36,7 @@ export interface BusinessModuleDependencies {
 export interface BusinessModule {
   businessRouter: Router;
   tenantMiddleware: RequestHandler;
-  businessValidationService: IBusinessValidationService;
+  businessQueryService: IBusinessQueryService;
   useCases: {
     createBusinessUseCase: CreateBusinessUseCase;
     getMyBusinessesUseCase: GetMyBusinessesUseCase;
@@ -49,7 +49,7 @@ export interface BusinessModule {
 export function createBusinessModule(deps: BusinessModuleDependencies): BusinessModule {
   // A. Infrastructure Adapters
   const businessRepository = new BusinessRepository(deps.database);
-  const businessValidationService = new BusinessValidationService(businessRepository);
+  const businessQueryService = new BusinessQueryService(businessRepository);
 
   // B. Application Use Cases
   const createBusinessUseCase = new CreateBusinessUseCase(businessRepository);
@@ -92,7 +92,7 @@ export function createBusinessModule(deps: BusinessModuleDependencies): Business
   return {
     businessRouter,
     tenantMiddleware,
-    businessValidationService,
+    businessQueryService,
     useCases: {
       createBusinessUseCase,
       getMyBusinessesUseCase,

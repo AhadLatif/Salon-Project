@@ -1,5 +1,6 @@
 import { respondOk, UnauthorizedError, validateBody } from '@salon/shared';
 import type { CookieOptions, NextFunction, Request, Response } from 'express';
+import { toAuthUserResponse } from '../../application/presenters/auth.presenter.js';
 import type { LoginUseCase } from '../../application/use-cases/login.use-case.js';
 import type { LogoutUseCase } from '../../application/use-cases/logout.use-case.js';
 import type { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case.js';
@@ -110,11 +111,7 @@ export class AuthController {
 
       // 2. Return only the access token — the client keeps it in memory.
       respondOk(res, 201, {
-        user: {
-          id: result.user.id,
-          email: result.user.primaryEmail,
-          fullName: result.user.fullName,
-        },
+        user: toAuthUserResponse(result.user),
         tokens: {
           accessToken: result.accessToken,
         },
@@ -172,11 +169,7 @@ export class AuthController {
 
       // 2. Return only the access token — the client keeps it in memory.
       respondOk(res, 200, {
-        user: {
-          id: result.user.id,
-          email: result.user.primaryEmail,
-          fullName: result.user.fullName,
-        },
+        user: toAuthUserResponse(result.user),
         tokens: {
           accessToken: result.accessToken,
         },

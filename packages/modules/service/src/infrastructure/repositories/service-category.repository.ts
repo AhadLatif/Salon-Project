@@ -6,16 +6,17 @@ import type {
   IServiceCategoryRepository,
   UpdateServiceCategoryData,
 } from '../../application/ports/service-category-repository.port.js';
-import {
-  ServiceCategoryEntity,
-  type ServiceCategoryProps,
-} from '../../domain/entities/service-category.entity.js';
+import type { ServiceCategoryEntity } from '../../domain/entities/service-category.entity.js';
+import { assertValidServiceCategory } from '../../domain/policies/service-category.policy.js';
 
 export class ServiceCategoryRepository implements IServiceCategoryRepository {
   constructor(private readonly database: typeof db) {}
 
   private toDomainEntity(row: typeof serviceCategories.$inferSelect): ServiceCategoryEntity {
-    return new ServiceCategoryEntity(row as ServiceCategoryProps);
+    // Same invariant check as before — previously inside the entity constructor, now a policy call
+    // on the row. No cast, no construction.
+    assertValidServiceCategory(row);
+    return row;
   }
 
   async create(data: CreateServiceCategoryData): Promise<ServiceCategoryEntity> {
