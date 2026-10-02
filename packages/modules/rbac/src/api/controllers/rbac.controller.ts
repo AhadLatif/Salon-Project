@@ -1,5 +1,6 @@
 import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
+import { toRoleResponse } from '../../application/presenters/role.presenter.js';
 import type { CreateCustomRoleUseCase } from '../../application/use-cases/create-custom-role.use-case.js';
 import type { GetBusinessRolesUseCase } from '../../application/use-cases/get-business-roles.use-case.js';
 import type { GetPermissionsCatalogUseCase } from '../../application/use-cases/get-permissions-catalog.use-case.js';
@@ -67,7 +68,7 @@ export class RbacController {
 
       const roles = await this.getBusinessRolesUseCase.execute(businessId);
 
-      respondOk(res, 200, { roles: roles.map((r) => r.toPrimitives()) }, { total: roles.length });
+      respondOk(res, 200, { roles: roles.map((r) => toRoleResponse(r)) }, { total: roles.length });
     } catch (error) {
       next(error);
     }
@@ -112,7 +113,7 @@ export class RbacController {
         permissionCodes: data.permissions,
       });
 
-      respondOk(res, 201, { role: role.toPrimitives() });
+      respondOk(res, 201, { role: toRoleResponse(role) });
     } catch (error) {
       next(error);
     }
@@ -159,7 +160,7 @@ export class RbacController {
         data.permissions,
       );
 
-      respondOk(res, 200, { role: role.toPrimitives() });
+      respondOk(res, 200, { role: toRoleResponse(role) });
     } catch (error) {
       next(error);
     }
