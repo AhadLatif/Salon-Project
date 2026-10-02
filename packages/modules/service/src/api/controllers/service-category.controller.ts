@@ -1,5 +1,6 @@
 import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { Request, Response } from 'express';
+import { toServiceCategoryResponse } from '../../application/presenters/service-category.presenter.js';
 import type { CreateCategoryUseCase } from '../../application/use-cases/create-category.use-case.js';
 import type { DeactivateCategoryUseCase } from '../../application/use-cases/deactivate-category.use-case.js';
 import type { GetCategoriesUseCase } from '../../application/use-cases/get-categories.use-case.js';
@@ -49,7 +50,7 @@ export class ServiceCategoryController {
       businessId,
     });
 
-    respondOk(res, 201, { category: category.toPrimitives() });
+    respondOk(res, 201, { category: toServiceCategoryResponse(category) });
   };
 
   /**
@@ -81,7 +82,9 @@ export class ServiceCategoryController {
 
     const categories = await this.getCategoriesUseCase.execute(businessId, { includeInactive });
 
-    respondOk(res, 200, { categories: categories.map((c) => c.toPrimitives()) });
+    respondOk(res, 200, {
+      categories: categories.map((c) => toServiceCategoryResponse(c)),
+    });
   };
 
   /**
@@ -117,7 +120,7 @@ export class ServiceCategoryController {
 
     const category = await this.updateCategoryUseCase.execute(businessId, categoryId, data);
 
-    respondOk(res, 200, { category: category.toPrimitives() });
+    respondOk(res, 200, { category: toServiceCategoryResponse(category) });
   };
 
   /**

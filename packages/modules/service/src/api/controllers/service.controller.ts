@@ -6,6 +6,7 @@ import {
   validateBody,
 } from '@salon/shared';
 import type { Request, Response } from 'express';
+import { toServiceResponse } from '../../application/presenters/service.presenter.js';
 import type { AssignServiceToBranchUseCase } from '../../application/use-cases/assign-service-to-branch.use-case.js';
 import type { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case.js';
 import type { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case.js';
@@ -70,7 +71,7 @@ export class ServiceController {
       businessId,
     });
 
-    respondOk(res, 201, { service: service.toPrimitives() });
+    respondOk(res, 201, { service: toServiceResponse(service) });
   };
 
   /**
@@ -100,7 +101,7 @@ export class ServiceController {
 
     const service = await this.getServiceByIdUseCase.execute(businessId, serviceId);
 
-    respondOk(res, 200, { service: service.toPrimitives() });
+    respondOk(res, 200, { service: toServiceResponse(service) });
   };
 
   /**
@@ -140,7 +141,7 @@ export class ServiceController {
 
     const services = await this.getServicesUseCase.execute(businessId, options);
 
-    respondOk(res, 200, { services: services.map((s) => s.toPrimitives()) });
+    respondOk(res, 200, { services: services.map((s) => toServiceResponse(s)) });
   };
 
   /**
@@ -174,7 +175,7 @@ export class ServiceController {
 
     const service = await this.updateServiceUseCase.execute(businessId, serviceId, data);
 
-    respondOk(res, 200, { service: service.toPrimitives() });
+    respondOk(res, 200, { service: toServiceResponse(service) });
   };
 
   /**

@@ -52,7 +52,7 @@ export class ServiceQueryService implements IServiceQueryService {
   async getServiceSnapshots(businessId: string, serviceIds: string[]): Promise<ServiceSnapshot[]> {
     const services = await this.serviceRepository.findByIds(businessId, serviceIds);
     return services.map((s) => ({
-      id: s.id as string,
+      id: s.id,
       name: s.name,
       defaultPrice: s.defaultPrice,
       defaultDurationMinutes: s.defaultDurationMinutes,
@@ -69,7 +69,7 @@ export class ServiceQueryService implements IServiceQueryService {
     const service = await this.serviceRepository.findById(businessId, serviceId);
     if (!service) return null;
     return {
-      id: service.id as string,
+      id: service.id,
       name: service.name,
       defaultPrice: service.defaultPrice,
       defaultDurationMinutes: service.defaultDurationMinutes,

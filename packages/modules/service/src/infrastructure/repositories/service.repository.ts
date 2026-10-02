@@ -6,13 +6,18 @@ import type {
   IServiceRepository,
   UpdateServiceData,
 } from '../../application/ports/service-repository.port.js';
-import { ServiceEntity, type ServiceProps } from '../../domain/entities/service.entity.js';
+import type { ServiceEntity } from '../../domain/entities/service.entity.js';
+import { assertValidService } from '../../domain/policies/service.policy.js';
 
 export class ServiceRepository implements IServiceRepository {
   constructor(private readonly database: typeof db) {}
 
   private toDomainEntity(row: typeof services.$inferSelect): ServiceEntity {
-    return new ServiceEntity(row as ServiceProps);
+    // Invariants used to be enforced by `ServiceEntity`'s constructor; they now run here, unchanged,
+    // via the policy — so reads and post-insert mappings still reject invalid data exactly as before.
+    // The row IS the entity, so this needs no cast and no object construction.
+    assertValidService(row);
+    return row;
   }
 
   async create(data: CreateServiceData): Promise<ServiceEntity> {
