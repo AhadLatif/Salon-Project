@@ -1,5 +1,12 @@
-import { ForbiddenError, getTenantContext, getUuidParam, validateBody } from '@salon/shared';
+import {
+  ForbiddenError,
+  getTenantContext,
+  getUuidParam,
+  respondOk,
+  validateBody,
+} from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
+import { toStaffMemberResponse } from '../../application/presenters/staff-member.presenter.js';
 import type { AddShiftToScheduleUseCase } from '../../application/use-cases/add-shift-to-schedule.use-case.js';
 import type { AssignServiceToStaffUseCase } from '../../application/use-cases/assign-service-to-staff.use-case.js';
 import type { AssignStaffToBranchUseCase } from '../../application/use-cases/assign-staff-to-branch.use-case.js';
@@ -93,12 +100,7 @@ export class StaffMemberController {
 
       const staff = await this.createStaffMemberUseCase.execute(data);
 
-      res.status(201).json({
-        success: true,
-        data: { staff },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 201, { staff: toStaffMemberResponse(staff) });
     } catch (error) {
       next(error);
     }
@@ -126,12 +128,7 @@ export class StaffMemberController {
     try {
       const { businessId } = getTenantContext(req);
       const staff = await this.getStaffMembersUseCase.execute(businessId);
-      res.status(200).json({
-        success: true,
-        data: { staff },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, { staff: staff.map((member) => toStaffMemberResponse(member)) });
     } catch (error) {
       next(error);
     }
@@ -163,12 +160,7 @@ export class StaffMemberController {
       const staffMemberId = getUuidParam(req, 'staffMemberId');
 
       const staff = await this.getStaffMemberDetailsUseCase.execute(businessId, staffMemberId);
-      res.status(200).json({
-        success: true,
-        data: { staff },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, { staff: toStaffMemberResponse(staff) });
     } catch (error) {
       next(error);
     }
@@ -205,12 +197,7 @@ export class StaffMemberController {
       const data = validateBody(updateStaffMemberSchema, req.body, 'Invalid staff member data');
 
       const staff = await this.updateStaffMemberUseCase.execute(businessId, staffMemberId, data);
-      res.status(200).json({
-        success: true,
-        data: { staff },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, { staff: toStaffMemberResponse(staff) });
     } catch (error) {
       next(error);
     }
@@ -242,12 +229,7 @@ export class StaffMemberController {
       const staffMemberId = getUuidParam(req, 'staffMemberId');
 
       await this.deactivateStaffMemberUseCase.execute(businessId, staffMemberId);
-      res.status(200).json({
-        success: true,
-        data: null,
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, null);
     } catch (error) {
       next(error);
     }
@@ -294,12 +276,7 @@ export class StaffMemberController {
         data.branchId,
         data.isPrimary,
       );
-      res.status(201).json({
-        success: true,
-        data: { assignment },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 201, { assignment });
     } catch (error) {
       next(error);
     }
@@ -333,12 +310,7 @@ export class StaffMemberController {
       const branchId = getUuidParam(req, 'branchId');
 
       await this.unassignStaffFromBranchUseCase.execute(businessId, staffMemberId, branchId);
-      res.status(200).json({
-        success: true,
-        data: null,
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, null);
     } catch (error) {
       next(error);
     }
@@ -391,12 +363,7 @@ export class StaffMemberController {
           isBookable: data.isBookable,
         },
       );
-      res.status(201).json({
-        success: true,
-        data: { assignment },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 201, { assignment });
     } catch (error) {
       next(error);
     }
@@ -430,12 +397,7 @@ export class StaffMemberController {
       const serviceId = getUuidParam(req, 'serviceId');
 
       await this.unassignServiceFromStaffUseCase.execute(businessId, staffMemberId, serviceId);
-      res.status(200).json({
-        success: true,
-        data: null,
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, null);
     } catch (error) {
       next(error);
     }
@@ -494,12 +456,7 @@ export class StaffMemberController {
         req.tenant.branchId,
         data,
       );
-      res.status(201).json({
-        success: true,
-        data: { schedule },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 201, { schedule });
     } catch (error) {
       next(error);
     }
@@ -539,12 +496,7 @@ export class StaffMemberController {
         staffMemberId,
         req.tenant.branchId,
       );
-      res.status(200).json({
-        success: true,
-        data: { schedules },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 200, { schedules });
     } catch (error) {
       next(error);
     }
@@ -595,12 +547,7 @@ export class StaffMemberController {
         data,
       );
 
-      res.status(201).json({
-        success: true,
-        data: { shift },
-        error: null,
-        meta: {},
-      });
+      respondOk(res, 201, { shift });
     } catch (error) {
       next(error);
     }
