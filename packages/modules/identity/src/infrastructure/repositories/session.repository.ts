@@ -9,7 +9,7 @@ import type {
   SessionTokenLookup,
   SessionTokenState,
 } from '../../application/ports/session-repository.port.js';
-import { SessionEntity, type SessionProps } from '../../domain/entities/session.entity.js';
+import type { SessionEntity } from '../../domain/entities/session.entity.js';
 
 export class SessionRepository implements ISessionRepository {
   constructor(private readonly database: typeof db) {}
@@ -31,7 +31,7 @@ export class SessionRepository implements ISessionRepository {
 
     if (!newSession) throw new Error('Failed to create new session');
 
-    return new SessionEntity(newSession as SessionProps);
+    return newSession;
   }
 
   async findByTokenHash(hash: string): Promise<SessionTokenLookup | null> {
@@ -49,13 +49,11 @@ export class SessionRepository implements ISessionRepository {
 
     if (!session) return null;
 
-    const entity = new SessionEntity(session as SessionProps);
-
     // The row carries both hashes, so we can classify the match without a second query.
     // "rotated" means the caller presented a token that had already been exchanged.
-    const tokenState: SessionTokenState = entity.refreshTokenHash === hash ? 'current' : 'rotated';
+    const tokenState: SessionTokenState = session.refreshTokenHash === hash ? 'current' : 'rotated';
 
-    return { session: entity, tokenState };
+    return { session, tokenState };
   }
 
   /**
