@@ -1,5 +1,6 @@
-import { getTenantContext, getUuidParam, validateBody } from '@salon/shared';
+import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { Request, Response } from 'express';
+import { toBranchResponse } from '../../application/presenters/branch.presenter.js';
 import type { CreateBranchUseCase } from '../../application/use-cases/create-branch.use-case.js';
 import type { DeleteBranchUseCase } from '../../application/use-cases/delete-branch.use-case.js';
 import type { GetBranchByIdUseCase } from '../../application/use-cases/get-branch-by-id.use-case.js';
@@ -45,11 +46,7 @@ export class BranchController {
 
     const branches = await this.getBusinessBranchesUseCase.execute(businessId);
 
-    res.status(200).json({
-      success: true,
-      data: { branches: branches.map((b) => b.toJSON()) },
-      meta: {},
-    });
+    respondOk(res, 200, { branches: branches.map((b) => toBranchResponse(b)) });
   };
 
   /**
@@ -81,11 +78,7 @@ export class BranchController {
 
     const branch = await this.getBranchByIdUseCase.execute(businessId, branchId);
 
-    res.status(200).json({
-      success: true,
-      data: { branch: branch.toJSON() },
-      meta: {},
-    });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -130,11 +123,7 @@ export class BranchController {
       })),
     });
 
-    res.status(201).json({
-      success: true,
-      data: { branch: branch.toJSON() },
-      meta: {},
-    });
+    respondOk(res, 201, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -170,11 +159,7 @@ export class BranchController {
 
     const branch = await this.updateBranchUseCase.execute(businessId, branchId, data);
 
-    res.status(200).json({
-      success: true,
-      data: { branch: branch.toJSON() },
-      meta: {},
-    });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -215,11 +200,7 @@ export class BranchController {
       })),
     );
 
-    res.status(200).json({
-      success: true,
-      data: { branch: branch.toJSON() },
-      meta: {},
-    });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**

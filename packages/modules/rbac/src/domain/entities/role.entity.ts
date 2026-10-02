@@ -1,49 +1,27 @@
-export interface RoleProps {
+/**
+ * A business role (system or custom) together with the permission codes granted to it.
+ *
+ * CONTRACT — maps 1:1 onto a `business_roles` row plus `permissions`, which the repository
+ * assembles from `business_role_permissions` joined to `permissions`. It is a persisted shape.
+ *
+ * WHY AN INTERFACE RATHER THAN A CLASS: the previous class held `props` behind a `toPrimitives()`
+ * escape hatch and carried no behaviour beyond copying fields (and applying `?? null`, `?? 0`,
+ * `?? []`, `?? new Date()` defaults). TypeScript's `private` is erased at runtime, so serializing
+ * the instance without calling `toPrimitives()` would have emitted `{"props":{…}}` — a wrong payload
+ * no type check can catch. Role is a bag of fields, so it is modelled as a shape; `toRoleResponse`
+ * owns what leaves the module.
+ *
+ * DEFAULTS: the former constructor's fallbacks now apply at the single point where a role is built
+ * (the repository mapper), so a role is never partially populated.
+ */
+export interface RoleEntity {
   id: string;
   businessId: string;
   name: string;
-  description?: string | null;
+  description: string | null;
   isSystem: boolean;
   displayOrder: number;
-  permissions?: string[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export class RoleEntity {
-  public readonly id: string;
-  public readonly businessId: string;
-  public readonly name: string;
-  public readonly description: string | null;
-  public readonly isSystem: boolean;
-  public readonly displayOrder: number;
-  public readonly permissions: string[];
-  public readonly createdAt: Date;
-  public readonly updatedAt: Date;
-
-  constructor(props: RoleProps) {
-    this.id = props.id;
-    this.businessId = props.businessId;
-    this.name = props.name;
-    this.description = props.description ?? null;
-    this.isSystem = props.isSystem;
-    this.displayOrder = props.displayOrder ?? 0;
-    this.permissions = props.permissions ?? [];
-    this.createdAt = props.createdAt ?? new Date();
-    this.updatedAt = props.updatedAt ?? new Date();
-  }
-
-  toPrimitives() {
-    return {
-      id: this.id,
-      businessId: this.businessId,
-      name: this.name,
-      description: this.description,
-      isSystem: this.isSystem,
-      displayOrder: this.displayOrder,
-      permissions: this.permissions,
-      createdAt: this.createdAt.toISOString(),
-      updatedAt: this.updatedAt.toISOString(),
-    };
-  }
+  permissions: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }

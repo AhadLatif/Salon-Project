@@ -1,67 +1,25 @@
-export interface UserProps {
+/**
+ * A platform user account.
+ *
+ * CONTRACT — maps 1:1 onto the `users` row.
+ *
+ * WHY AN INTERFACE RATHER THAN A CLASS: the old `UserEntity` kept everything in a private `props` bag
+ * behind ten getters. Because TypeScript erases `private` at runtime, the instance was physically
+ * `{ props: {...} }` and `JSON.stringify` would have emitted that wrapper — so every response depended
+ * on someone remembering to call `toPrimitives()`. A user is a bag of fields, so it is a shape.
+ *
+ * `fullName` IS NOT A FIELD. It was a derived getter (`firstName + lastName`); it is now derived where
+ * it is actually consumed — in `toAuthUserResponse` — so the derivation and the response contract can
+ * never drift apart. No caller reads it anywhere else.
+ */
+export interface UserEntity {
   id: string;
   firstName: string;
   lastName: string;
   primaryEmail: string;
-  primaryPhone?: string | null;
-  avatarUrl?: string | null;
+  primaryPhone: string | null;
+  avatarUrl: string | null;
   status: 'active' | 'suspended' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
 }
-
-export class UserEntity {
-  constructor(private readonly props: UserProps) {}
-
-  get id(): string {
-    return this.props.id;
-  }
-  get firstName(): string {
-    return this.props.firstName;
-  }
-  get lastName(): string {
-    return this.props.lastName;
-  }
-  get primaryEmail(): string {
-    return this.props.primaryEmail;
-  }
-  get status(): 'active' | 'suspended' | 'deleted' {
-    return this.props.status;
-  }
-  get avatarUrl(): string | null | undefined {
-    return this.props.avatarUrl;
-  }
-  get createdAt(): Date {
-    return this.props.createdAt;
-  }
-  get updatedAt(): Date {
-    return this.props.updatedAt;
-  }
-  get primaryPhone(): string | null | undefined {
-    return this.props.primaryPhone;
-  }
-
-  get fullName(): string {
-    return `${this.props.firstName} ${this.props.lastName}`.trim();
-  }
-
-  toPrimitives(): UserProps {
-    return { ...this.props };
-  }
-}
-
-// TODO: Consider adding a static factory method to create a UserEntity from a database record, if needed.
-
-// return new UserEntity(createdRecord as UserProps);
-
-// function toUserEntity(record: UserRow): UserEntity {
-//   return new UserEntity({
-//     id: record.id,
-//     firstName: record.firstName,
-//     lastName: record.lastName,
-//     primaryEmail: record.primaryEmail,
-//     status: record.status,
-//     createdAt: record.createdAt,
-//     updatedAt: record.updatedAt,
-//   });
-// }

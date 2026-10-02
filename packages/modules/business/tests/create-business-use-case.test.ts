@@ -34,7 +34,9 @@ describe('CreateBusinessUseCase Integration Tests', () => {
     expect(business.id).toBeDefined();
     expect(business.name).toBe('Glamour Salon');
     expect(business.slug).toBe('glamour-salon');
-    expect(business.ownerUserId).toBe(ownerUser.id);
+    // Ownership is NOT a property of the entity — it is derived from the membership tables, not a
+    // `businesses` column, so it is resolved on demand through the explicitly named query method.
+    expect(await businessRepository.getOwnerUserId(business.id)).toBe(ownerUser.id);
 
     // Verify Owner role exists for the created business
     const [ownerRole] = await db

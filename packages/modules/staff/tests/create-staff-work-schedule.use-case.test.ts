@@ -1,4 +1,4 @@
-import { BranchRepository, BranchValidationService } from '@salon/branch';
+import { BranchQueryService, BranchRepository } from '@salon/branch';
 import { db } from '@salon/database';
 import { ForbiddenError, ResourceNotFoundError } from '@salon/shared';
 import {
@@ -13,14 +13,14 @@ import { StaffRepository } from '../src/infrastructure/repositories/staff.reposi
 
 describe('CreateStaffWorkScheduleUseCase Integration Tests', () => {
   let repo: StaffRepository;
-  let branchValidator: BranchValidationService;
+  let branchValidator: BranchQueryService;
   let useCase: CreateStaffWorkScheduleUseCase;
 
   beforeEach(async () => {
     await truncateAllTables(db);
     repo = new StaffRepository(db);
     const branchRepo = new BranchRepository(db);
-    branchValidator = new BranchValidationService(branchRepo);
+    branchValidator = new BranchQueryService(branchRepo);
     useCase = new CreateStaffWorkScheduleUseCase(repo, branchValidator);
   });
 

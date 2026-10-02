@@ -1,17 +1,76 @@
 import { businesses, businessMembers, businessRoles, type db } from '@salon/database';
 import { OWNER_ROLE_NAME } from '@salon/shared';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import type {
   CreateBusinessWithOwnerData,
   IBusinessRepository,
   UpdateBusinessData,
 } from '../../application/ports/business-repository.port.js';
-import { BusinessEntity, type BusinessProps } from '../../domain/entities/business.entity.js';
+import type { BusinessEntity } from '../../domain/entities/business.entity.js';
+
+/** A full `businesses` row as Drizzle returns it — the ONLY shape the entity accepts. */
+type BusinessRow = typeof businesses.$inferSelect;
+
+/**
+ * Normalises the `social_links` jsonb column into the `Record<string, string>` the API declares.
+ *
+ * `jsonb` surfaces as `unknown`, so this is the single deliberate narrowing point for that column.
+ * Non-string values are dropped rather than asserted: a cast (`as Record<string, string>`) would
+ * publish whatever a bad write put in the column, and this mapper is the boundary that stops it.
+ */
+function toSocialLinks(value: unknown): Record<string, string> | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const links: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') links[key] = entry;
+  }
+
+  return links;
+}
+
+/**
+ * THE row → entity mapper for this module.
+ *
+ * WHY A FUNCTION INSTEAD OF `as BusinessProps`: the previous code spread a database row and cast
+ * the result, five times. A cast is an unchecked promise to the compiler — when the schema and the
+ * props interface drifted, it still compiled and the mismatch shipped silently (that is exactly how
+ * `ownerUserId` survived). Here every field is named, so the next schema change is a COMPILE ERROR,
+ * which is the entire point of having a domain type.
+ *
+ * NOTE: the entity is now a plain shape, so this function's job is only to NARROW `social_links`
+ * (jsonb surfaces as `unknown`). It no longer constructs a class, which removes the second
+ * row → props copy that used to precede serialization.
+ */
+function toBusinessEntity(row: BusinessRow): BusinessEntity {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    email: row.email,
+    phoneNumber: row.phoneNumber,
+    status: row.status,
+    socialLinks: toSocialLinks(row.socialLinks),
+    verifiedAt: row.verifiedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
 export class BusinessRepository implements IBusinessRepository {
   constructor(private readonly database: typeof db) {}
 
-  private async findOwnerUserId(businessId: string): Promise<string | null> {
+  /**
+   * Resolves the user id holding the system `Owner` role for a business.
+   *
+   * Deliberately a NAMED METHOD rather than a field on the entity: ownership is derived from
+   * `business_members` + `business_roles`, so it costs an extra join. As a prop it forced that join
+   * onto every read (including the tenant middleware's `findById`); as a method, callers pay only
+   * when they genuinely need the owner.
+   */
+  async getOwnerUserId(businessId: string): Promise<string | null> {
     const [owner] = await this.database
       .select({ userId: businessMembers.userId })
       .from(businessMembers)
@@ -35,14 +94,7 @@ export class BusinessRepository implements IBusinessRepository {
       .where(eq(businesses.id, id))
       .limit(1);
 
-    if (!row) return null;
-
-    const ownerUserId = await this.findOwnerUserId(id);
-
-    return new BusinessEntity({
-      ...row,
-      ownerUserId: ownerUserId ?? '',
-    } as BusinessProps);
+    return row ? toBusinessEntity(row) : null;
   }
 
   async findBySlug(slug: string): Promise<BusinessEntity | null> {
@@ -52,14 +104,29 @@ export class BusinessRepository implements IBusinessRepository {
       .where(eq(businesses.slug, slug))
       .limit(1);
 
-    if (!row) return null;
+    return row ? toBusinessEntity(row) : null;
+  }
 
-    const ownerUserId = await this.findOwnerUserId(row.id);
+  /**
+   * Cheap existence probe used by cross-module validators.
+   *
+   * WHY NOT `findById(...) !== null`: `findById` selects the whole row, runs the owner join and
+   * constructs a domain entity. Callers such as `add-favorite` only need a yes/no, so this asks the
+   * database the actual question (`SELECT id ... LIMIT 1`) and stops there.
+   *
+   * SEMANTICS — deliberately "does this tenant exist", NOT "is this tenant usable". A business with
+   * status `suspended` or `archived` still returns `true`; blocking those is a product rule that
+   * must be decided and applied deliberately (see the active-only checks in
+   * `CustomerQueryService.isCustomerInBusiness` and `BranchQueryService`), not smuggled in here.
+   */
+  async exists(id: string): Promise<boolean> {
+    const [row] = await this.database
+      .select({ id: businesses.id })
+      .from(businesses)
+      .where(eq(businesses.id, id))
+      .limit(1);
 
-    return new BusinessEntity({
-      ...row,
-      ownerUserId: ownerUserId ?? '',
-    } as BusinessProps);
+    return row !== undefined;
   }
 
   async getMembership(
@@ -85,32 +152,23 @@ export class BusinessRepository implements IBusinessRepository {
     };
   }
 
+  /**
+   * Every business the given user is a member of.
+   *
+   * Selects ALL `businesses` columns (`getTableColumns`) so the one mapper applies and the result
+   * carries exactly the same field set as `findById`. Previously this method hand-picked a subset
+   * and silently omitted `verifiedAt` — so "a business" had two different shapes depending on which
+   * method produced it — and it reported the CALLER's user id as `ownerUserId`, mislabelling every
+   * business as owned by whoever happened to be asking.
+   */
   async getUserBusinesses(userId: string): Promise<BusinessEntity[]> {
     const rows = await this.database
-      .select({
-        id: businesses.id,
-        name: businesses.name,
-        slug: businesses.slug,
-        email: businesses.email,
-        phoneNumber: businesses.phoneNumber,
-        description: businesses.description,
-        socialLinks: businesses.socialLinks,
-        status: businesses.status,
-        createdAt: businesses.createdAt,
-        updatedAt: businesses.updatedAt,
-        ownerUserId: businessMembers.userId,
-      })
+      .select(getTableColumns(businesses))
       .from(businessMembers)
       .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
       .where(eq(businessMembers.userId, userId));
 
-    return rows.map(
-      (r) =>
-        new BusinessEntity({
-          ...r,
-          socialLinks: (r.socialLinks as Record<string, string>) ?? null,
-        } as BusinessProps),
-    );
+    return rows.map((row) => toBusinessEntity(row));
   }
 
   async update(id: string, data: UpdateBusinessData): Promise<BusinessEntity | null> {
@@ -134,12 +192,7 @@ export class BusinessRepository implements IBusinessRepository {
 
     if (!updatedRow) return null;
 
-    const ownerUserId = await this.findOwnerUserId(id);
-
-    return new BusinessEntity({
-      ...updatedRow,
-      ownerUserId: ownerUserId ?? '',
-    } as BusinessProps);
+    return toBusinessEntity(updatedRow);
   }
 
   /**
@@ -203,10 +256,7 @@ export class BusinessRepository implements IBusinessRepository {
       return newBusiness;
     });
 
-    return new BusinessEntity({
-      ...createdBusiness,
-      ownerUserId: data.ownerUserId,
-    } as BusinessProps);
+    return toBusinessEntity(createdBusiness);
   }
 
   /**

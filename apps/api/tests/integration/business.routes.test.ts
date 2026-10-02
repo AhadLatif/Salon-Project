@@ -38,7 +38,11 @@ describe('Business Routes Integration Tests', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.business.name).toBe('Alice Salon');
     expect(response.body.data.business.slug).toBe('alice-salon');
-    expect(response.body.data.business.ownerUserId).toBeDefined();
+    // Contract guard: `ownerUserId` is NOT part of the published OpenAPI schema (business.openapi.ts).
+    // It used to leak here as a synthesised value that cost an extra JOIN on every read — and in the
+    // list endpoint it reported the CALLER's id as the owner. Assert absence so it cannot creep back.
+    expect(response.body.data.business).not.toHaveProperty('ownerUserId');
+    expect(response.body).toHaveProperty('error', null);
   });
 
   it('GET /api/v1/businesses/me - should return businesses for authenticated user', async () => {
@@ -63,6 +67,11 @@ describe('Business Routes Integration Tests', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.businesses).toHaveLength(1);
     expect(response.body.data.businesses[0].name).toBe('Alice Salon');
+    // Shape parity: the list endpoint used to hand-pick a subset of columns and silently omit
+    // `verifiedAt`, so one entity had two different shapes depending on the endpoint. `getUserBusinesses`
+    // now selects every `businesses` column, so list and detail must expose the same field set.
+    expect(response.body.data.businesses[0]).toHaveProperty('verifiedAt');
+    expect(response.body.data.businesses[0]).not.toHaveProperty('ownerUserId');
   });
 
   it('GET /api/v1/businesses/:id - should require x-business-id header', async () => {

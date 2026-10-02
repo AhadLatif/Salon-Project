@@ -1,4 +1,4 @@
-import { BusinessRepository, BusinessValidationService } from '@salon/business';
+import { BusinessQueryService, BusinessRepository } from '@salon/business';
 import { db } from '@salon/database';
 import { ConflictError, ForbiddenError } from '@salon/shared';
 import { createTestBusiness, createTestBusinessMember, truncateAllTables } from '@salon/testing';
@@ -8,14 +8,14 @@ import { StaffRepository } from '../src/infrastructure/repositories/staff.reposi
 
 describe('CreateStaffMemberUseCase Integration Tests', () => {
   let repo: StaffRepository;
-  let businessMemberValidator: BusinessValidationService;
+  let businessMemberValidator: BusinessQueryService;
   let useCase: CreateStaffMemberUseCase;
 
   beforeEach(async () => {
     await truncateAllTables(db);
     repo = new StaffRepository(db);
     const businessRepo = new BusinessRepository(db);
-    businessMemberValidator = new BusinessValidationService(businessRepo);
+    businessMemberValidator = new BusinessQueryService(businessRepo);
     useCase = new CreateStaffMemberUseCase(repo, businessMemberValidator);
   });
 

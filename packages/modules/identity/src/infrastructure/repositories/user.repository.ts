@@ -5,7 +5,7 @@ import type {
   IUserRepository,
   NewUserPayload,
 } from '../../application/ports/user-repository.port.js';
-import { UserEntity, type UserProps } from '../../domain/entities/user.entity.js';
+import type { UserEntity } from '../../domain/entities/user.entity.js';
 
 export class UserRepository implements IUserRepository {
   constructor(private readonly database: typeof db) {}
@@ -15,7 +15,7 @@ export class UserRepository implements IUserRepository {
 
     if (!record) return null;
 
-    return new UserEntity(record as UserProps);
+    return record;
   }
 
   async findById(id: string): Promise<UserEntity | null> {
@@ -23,7 +23,7 @@ export class UserRepository implements IUserRepository {
 
     if (!record) return null;
 
-    return new UserEntity(record as UserProps);
+    return record;
   }
 
   async createWithEmailAuth(userData: NewUserPayload, passwordHash: string): Promise<UserEntity> {
@@ -54,9 +54,9 @@ export class UserRepository implements IUserRepository {
       return newUser;
     });
 
-    // you can't just return `record` because the port promises a `UserEntity`,
-    // and the entity adds behavior (`fullName`, `isActive`) that a raw row doesn't have.
-    return new UserEntity(createdRecord as UserProps);
+    // The row IS the entity now, so no wrapping or cast is needed. `fullName` used to be a getter on
+    // the class; it is derived where it is consumed instead (see `toAuthUserResponse`).
+    return createdRecord;
   }
 
   async findUserPassword(userId: string): Promise<string | null> {
