@@ -197,8 +197,29 @@ Never start the next module without explicit permission from the user.
 
 - **`req.body` / request headers** ONLY in `apps/api/controllers`.
 - **SQL queries** live ONLY in `packages/infrastructure/database` or `packages/modules/*/infrastructure/repositories`.
-- **Business logic** ONLY in `packages/modules/*/application/use-cases`.
+- **Business logic** in `packages/modules/*/application/use-cases`, plus **pure invariant functions** in `packages/modules/*/domain/policies`.
 - **Domain entities** ONLY in `packages/modules/*/domain/entities`.
+
+### Domain Model Contract (STRICT INVARIANT — see DECISION-008)
+- **A domain entity is an `interface` describing a persisted shape, NOT a class.** It maps 1:1 onto its
+  module's table columns — no derived, joined or defaulted values.
+- **A `class` may live in `domain/entities/` ONLY if it owns a state invariant across operations**
+  (e.g. a status FSM). It must be listed in `ALLOWED_ENTITY_CLASSES` in
+  `apps/api/tests/entity-shape.test.ts` with a one-line justification, or the build fails. Never work
+  around that guard.
+- **Invariants live in `domain/policies/*.policy.ts` as pure functions** (e.g. `assertValidBranch(...)`),
+  so they can be applied to a database row or to a prospective payload alike. Never fabricate a
+  placeholder entity (dummy UUIDs, invented fields) merely to make a constructor validate.
+- **Repositories MUST NOT cast rows** (`row as Entity`, `as BranchProps`, …). Name every field, or narrow a
+  `jsonb` column explicitly. A cast disables the compiler exactly where schema drift happens.
+- **What leaves the module is decided in `application/presenters/<module>.presenter.ts`**, an explicit
+  allow-list — required because `api/` may not import `domain/` (`api-cannot-depend-on-domain` is an
+  **error** in `.dependency-cruiser.cjs`). A new column is NOT published until someone adds it there *and*
+  to the module's OpenAPI registry.
+- **Success responses go through `respondOk()`** (`packages/shared/src/http/response.util.ts`). A
+  hand-written envelope must still carry `error`; `apps/api/tests/response-envelope.test.ts` enforces it.
+- **Two guard tests protect this contract** — run them, extend them, never delete an assertion to make a
+  build pass.
 
 ### Module Isolation & Database Boundaries (STRICT INVARIANT)
 - **A repository MUST ONLY query tables owned by its own module.**
