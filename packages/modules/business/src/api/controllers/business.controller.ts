@@ -1,6 +1,7 @@
 import type { TokenPayload } from '@salon/identity';
 import { getTenantContext, respondOk, UnauthorizedError, validateBody } from '@salon/shared';
 import type { NextFunction, Request, Response } from 'express';
+import { toBusinessResponse } from '../../application/presenters/business.presenter.js';
 import type { CreateBusinessUseCase } from '../../application/use-cases/create-business.use-case.js';
 import type { GetBusinessByIdUseCase } from '../../application/use-cases/get-business-by-id.use-case.js';
 import type { GetMyBusinessesUseCase } from '../../application/use-cases/get-my-businesses.use-case.js';
@@ -73,7 +74,7 @@ export class BusinessController {
         },
       });
 
-      respondOk(res, 201, { business: result.toPrimitives() });
+      respondOk(res, 201, { business: toBusinessResponse(result) });
     } catch (error) {
       next(error);
     }
@@ -106,7 +107,7 @@ export class BusinessController {
       respondOk(
         res,
         200,
-        { businesses: businesses.map((b) => b.toPrimitives()) },
+        { businesses: businesses.map((b) => toBusinessResponse(b)) },
         { total: businesses.length },
       );
     } catch (error) {
@@ -143,7 +144,7 @@ export class BusinessController {
 
       const business = await this.getBusinessByIdUseCase.execute(businessId);
 
-      respondOk(res, 200, { business: business.toPrimitives() });
+      respondOk(res, 200, { business: toBusinessResponse(business) });
     } catch (error) {
       next(error);
     }
@@ -186,7 +187,7 @@ export class BusinessController {
 
       const updatedBusiness = await this.updateBusinessUseCase.execute(businessId, data);
 
-      respondOk(res, 200, { business: updatedBusiness.toPrimitives() });
+      respondOk(res, 200, { business: toBusinessResponse(updatedBusiness) });
     } catch (error) {
       next(error);
     }

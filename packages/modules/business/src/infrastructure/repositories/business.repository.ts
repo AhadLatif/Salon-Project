@@ -6,7 +6,7 @@ import type {
   IBusinessRepository,
   UpdateBusinessData,
 } from '../../application/ports/business-repository.port.js';
-import { BusinessEntity } from '../../domain/entities/business.entity.js';
+import type { BusinessEntity } from '../../domain/entities/business.entity.js';
 
 /** A full `businesses` row as Drizzle returns it — the ONLY shape the entity accepts. */
 type BusinessRow = typeof businesses.$inferSelect;
@@ -38,9 +38,13 @@ function toSocialLinks(value: unknown): Record<string, string> | null {
  * props interface drifted, it still compiled and the mismatch shipped silently (that is exactly how
  * `ownerUserId` survived). Here every field is named, so the next schema change is a COMPILE ERROR,
  * which is the entire point of having a domain type.
+ *
+ * NOTE: the entity is now a plain shape, so this function's job is only to NARROW `social_links`
+ * (jsonb surfaces as `unknown`). It no longer constructs a class, which removes the second
+ * row → props copy that used to precede serialization.
  */
 function toBusinessEntity(row: BusinessRow): BusinessEntity {
-  return new BusinessEntity({
+  return {
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -52,7 +56,7 @@ function toBusinessEntity(row: BusinessRow): BusinessEntity {
     verifiedAt: row.verifiedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  });
+  };
 }
 
 export class BusinessRepository implements IBusinessRepository {
