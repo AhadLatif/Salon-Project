@@ -1,5 +1,6 @@
 import { getTenantContext, getUuidParam, respondOk, validateBody } from '@salon/shared';
 import type { Request, Response } from 'express';
+import { toBranchResponse } from '../../application/presenters/branch.presenter.js';
 import type { CreateBranchUseCase } from '../../application/use-cases/create-branch.use-case.js';
 import type { DeleteBranchUseCase } from '../../application/use-cases/delete-branch.use-case.js';
 import type { GetBranchByIdUseCase } from '../../application/use-cases/get-branch-by-id.use-case.js';
@@ -45,7 +46,7 @@ export class BranchController {
 
     const branches = await this.getBusinessBranchesUseCase.execute(businessId);
 
-    respondOk(res, 200, { branches: branches.map((b) => b.toJSON()) });
+    respondOk(res, 200, { branches: branches.map((b) => toBranchResponse(b)) });
   };
 
   /**
@@ -77,7 +78,7 @@ export class BranchController {
 
     const branch = await this.getBranchByIdUseCase.execute(businessId, branchId);
 
-    respondOk(res, 200, { branch: branch.toJSON() });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -122,7 +123,7 @@ export class BranchController {
       })),
     });
 
-    respondOk(res, 201, { branch: branch.toJSON() });
+    respondOk(res, 201, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -158,7 +159,7 @@ export class BranchController {
 
     const branch = await this.updateBranchUseCase.execute(businessId, branchId, data);
 
-    respondOk(res, 200, { branch: branch.toJSON() });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**
@@ -199,7 +200,7 @@ export class BranchController {
       })),
     );
 
-    respondOk(res, 200, { branch: branch.toJSON() });
+    respondOk(res, 200, { branch: toBranchResponse(branch) });
   };
 
   /**
