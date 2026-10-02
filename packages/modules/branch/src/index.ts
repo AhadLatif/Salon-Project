@@ -2,9 +2,9 @@ import type { db } from '@salon/database';
 import { type RequestHandler, Router } from 'express';
 import { BranchController } from './api/controllers/branch.controller.js';
 import {
-  BranchValidationService,
-  type IBranchValidationService,
-} from './application/services/branch-validation.service.js';
+  BranchQueryService,
+  type IBranchQueryService,
+} from './application/services/branch-query.service.js';
 import { CreateBranchUseCase } from './application/use-cases/create-branch.use-case.js';
 import { DeleteBranchUseCase } from './application/use-cases/delete-branch.use-case.js';
 import { GetBranchByIdUseCase } from './application/use-cases/get-branch-by-id.use-case.js';
@@ -19,7 +19,7 @@ export * from './api/dtos/create-branch.schema.js';
 export * from './api/dtos/update-branch.schema.js';
 export * from './api/dtos/update-branch-hours.schema.js';
 export * from './application/ports/branch-repository.port.js';
-export * from './application/services/branch-validation.service.js';
+export * from './application/services/branch-query.service.js';
 export * from './application/use-cases/create-branch.use-case.js';
 export * from './application/use-cases/delete-branch.use-case.js';
 export * from './application/use-cases/get-branch-by-id.use-case.js';
@@ -38,7 +38,7 @@ export interface BranchModuleDependencies {
 
 export interface BranchModule {
   branchRouter: Router;
-  branchValidationService: IBranchValidationService;
+  branchQueryService: IBranchQueryService;
   useCases: {
     createBranchUseCase: CreateBranchUseCase;
     updateBranchUseCase: UpdateBranchUseCase;
@@ -51,7 +51,7 @@ export interface BranchModule {
 
 export function createBranchModule(deps: BranchModuleDependencies): BranchModule {
   const branchRepository = new BranchRepository(deps.database);
-  const branchValidationService = new BranchValidationService(branchRepository);
+  const branchQueryService = new BranchQueryService(branchRepository);
 
   const createBranchUseCase = new CreateBranchUseCase(branchRepository);
   const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
@@ -105,7 +105,7 @@ export function createBranchModule(deps: BranchModuleDependencies): BranchModule
 
   return {
     branchRouter,
-    branchValidationService,
+    branchQueryService,
     useCases: {
       createBranchUseCase,
       updateBranchUseCase,

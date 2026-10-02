@@ -6,7 +6,7 @@ import type {
   IRbacRepository,
   PermissionItem,
 } from '../../application/ports/rbac-repository.port.js';
-import { RoleEntity } from '../../domain/entities/role.entity.js';
+import type { RoleEntity } from '../../domain/entities/role.entity.js';
 
 export class RbacRepository implements IRbacRepository {
   constructor(private readonly database: typeof db) {}
@@ -48,20 +48,17 @@ export class RbacRepository implements IRbacRepository {
       rolePermMap.set(r.roleId, existing);
     }
 
-    return roleRows.map(
-      (r) =>
-        new RoleEntity({
-          id: r.id,
-          businessId: r.businessId,
-          name: r.name,
-          description: r.description,
-          isSystem: r.isSystem,
-          displayOrder: r.displayOrder,
-          permissions: rolePermMap.get(r.id) ?? [],
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }),
-    );
+    return roleRows.map((r) => ({
+      id: r.id,
+      businessId: r.businessId,
+      name: r.name,
+      description: r.description,
+      isSystem: r.isSystem,
+      displayOrder: r.displayOrder,
+      permissions: rolePermMap.get(r.id) ?? [],
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
   }
 
   /**
@@ -117,7 +114,7 @@ export class RbacRepository implements IRbacRepository {
           }
         }
 
-        return new RoleEntity({
+        return {
           id: newRole.id,
           businessId: newRole.businessId,
           name: newRole.name,
@@ -127,7 +124,7 @@ export class RbacRepository implements IRbacRepository {
           permissions: assignedPerms,
           createdAt: newRole.createdAt,
           updatedAt: newRole.updatedAt,
-        });
+        };
       });
     } catch (error) {
       handleUniqueConstraint(error, {
@@ -181,7 +178,7 @@ export class RbacRepository implements IRbacRepository {
         }
       }
 
-      return new RoleEntity({
+      return {
         id: role.id,
         businessId: role.businessId,
         name: role.name,
@@ -191,7 +188,7 @@ export class RbacRepository implements IRbacRepository {
         permissions: assignedPerms,
         createdAt: role.createdAt,
         updatedAt: role.updatedAt,
-      });
+      };
     });
   }
 

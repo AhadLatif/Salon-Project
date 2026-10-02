@@ -1,119 +1,50 @@
-import { ValidationError } from '@salon/shared';
-
 export type StaffStatus = 'active' | 'inactive' | 'terminated';
 export type EmploymentType = 'full_time' | 'part_time' | 'contractor';
 
-export interface StaffMemberProps {
-  id?: string | undefined;
+/**
+ * The subset of a staff member that the domain invariants inspect.
+ *
+ * WHY THIS SHAPE EXISTS: the old class validated in its constructor, so checking a not-yet-persisted
+ * staff member meant constructing one. A policy over exactly these fields removes that requirement
+ * and, more importantly, removes the `row as StaffMemberProps` cast the repository used — a cast that
+ * also papered over `languages` / `socialLinks` being jsonb (`unknown`) rather than typed arrays.
+ */
+export interface StaffMemberValidationInput {
   businessId: string;
   businessMemberId: string;
-  status?: StaffStatus | undefined;
   displayName: string;
-  jobTitle?: string | null | undefined;
-  biography?: string | null | undefined;
-  avatarMediaId?: string | null | undefined;
-  employmentType?: EmploymentType | undefined;
-  hireDate?: string | null | undefined;
-  excludeFromAutoAssignment?: boolean | undefined;
-  languages?: string[] | null | undefined;
-  socialLinks?: Record<string, string> | null | undefined;
-  createdAt?: Date | undefined;
-  updatedAt?: Date | undefined;
+  jobTitle: string | null;
+  biography: string | null;
 }
 
-export class StaffMemberEntity {
-  public readonly id?: string | undefined;
-  public readonly businessId: string;
-  public readonly businessMemberId: string;
-  public readonly status: StaffStatus;
-  public readonly displayName: string;
-  public readonly jobTitle: string | null;
-  public readonly biography: string | null;
-  public readonly avatarMediaId: string | null;
-  public readonly employmentType: EmploymentType;
-  public readonly hireDate: string | null;
-  public readonly excludeFromAutoAssignment: boolean;
-  public readonly languages: string[] | null;
-  public readonly socialLinks: Record<string, string> | null;
-  public readonly createdAt?: Date | undefined;
-  public readonly updatedAt?: Date | undefined;
-
-  constructor(props: StaffMemberProps) {
-    this.id = props.id;
-    this.businessId = props.businessId;
-    this.businessMemberId = props.businessMemberId;
-    this.status = props.status ?? 'active';
-    this.displayName = props.displayName;
-    this.jobTitle = props.jobTitle ?? null;
-    this.biography = props.biography ?? null;
-    this.avatarMediaId = props.avatarMediaId ?? null;
-    this.employmentType = props.employmentType ?? 'full_time';
-    this.hireDate = props.hireDate ?? null;
-    this.excludeFromAutoAssignment = props.excludeFromAutoAssignment ?? false;
-    this.languages = props.languages ?? null;
-    this.socialLinks = props.socialLinks ?? null;
-    this.createdAt = props.createdAt;
-    this.updatedAt = props.updatedAt;
-
-    this.validate();
-  }
-
-  private validate(): void {
-    if (!this.businessId) {
-      throw new ValidationError(
-        'Staff member must belong to a business tenant (businessId is required).',
-        {
-          businessId: 'Required',
-        },
-      );
-    }
-    if (!this.businessMemberId) {
-      throw new ValidationError(
-        'Staff member must link to a business member (businessMemberId is required).',
-        {
-          businessMemberId: 'Required',
-        },
-      );
-    }
-    if (!this.displayName || this.displayName.trim().length === 0) {
-      throw new ValidationError('Staff display name cannot be empty.', {
-        displayName: 'Cannot be empty',
-      });
-    }
-    if (this.displayName.length > 200) {
-      throw new ValidationError('Staff display name cannot exceed 200 characters.', {
-        displayName: 'Too long',
-      });
-    }
-    if (this.jobTitle && this.jobTitle.length > 100) {
-      throw new ValidationError('Job title cannot exceed 100 characters.', {
-        jobTitle: 'Too long',
-      });
-    }
-    if (this.biography && this.biography.length > 2000) {
-      throw new ValidationError('Biography cannot exceed 2000 characters.', {
-        biography: 'Too long',
-      });
-    }
-  }
-
-  public toPrimitives(): Record<string, unknown> {
-    return {
-      id: this.id,
-      businessId: this.businessId,
-      businessMemberId: this.businessMemberId,
-      status: this.status,
-      displayName: this.displayName,
-      jobTitle: this.jobTitle,
-      biography: this.biography,
-      avatarMediaId: this.avatarMediaId,
-      employmentType: this.employmentType,
-      hireDate: this.hireDate,
-      excludeFromAutoAssignment: this.excludeFromAutoAssignment,
-      languages: this.languages,
-      socialLinks: this.socialLinks,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
-  }
+/**
+ * A staff member of a salon tenant.
+ *
+ * CONTRACT — maps 1:1 onto the `staff_members` row. `languages` and `socialLinks` are jsonb columns;
+ * the repository NARROWS them to typed values instead of asserting them, so a malformed write cannot
+ * publish junk to clients.
+ *
+ * WHY AN INTERFACE RATHER THAN A CLASS: the class only ran `validate()` in its constructor and offered
+ * `toPrimitives()`. Because TypeScript erases `private` at runtime, such an instance is `{ props: {...} }`
+ * and any code that forgot `toPrimitives()` would serialize the wrapper. A staff member is a bag of
+ * fields, so it is modelled as a shape.
+ *
+ * NOTE ON `id`: required here (it was optional) because the class doubled as a pre-insert builder.
+ */
+export interface StaffMemberEntity {
+  id: string;
+  businessId: string;
+  businessMemberId: string;
+  status: StaffStatus;
+  displayName: string;
+  jobTitle: string | null;
+  biography: string | null;
+  avatarMediaId: string | null;
+  employmentType: EmploymentType;
+  hireDate: string | null;
+  excludeFromAutoAssignment: boolean;
+  languages: string[] | null;
+  socialLinks: Record<string, string> | null;
+  createdAt: Date;
+  updatedAt: Date;
 }

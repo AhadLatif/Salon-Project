@@ -7,8 +7,8 @@ import type {
 import type { ITokenService } from '../src/application/ports/token-service.port.js';
 import type { IUserRepository } from '../src/application/ports/user-repository.port.js';
 import { RefreshTokenUseCase } from '../src/application/use-cases/refresh-token.use-case.js';
-import { SessionEntity, type SessionProps } from '../src/domain/entities/session.entity.js';
-import { UserEntity } from '../src/domain/entities/user.entity.js';
+import type { SessionEntity } from '../src/domain/entities/session.entity.js';
+import type { UserEntity } from '../src/domain/entities/user.entity.js';
 
 const USER_ID = '11111111-1111-1111-1111-111111111111';
 const SESSION_ID = '22222222-2222-2222-2222-222222222222';
@@ -19,33 +19,37 @@ const PRESENTED_TOKEN = 'presented-refresh-token';
 const hashOf = (token: string): string => `sha256:${token}`;
 const PRESENTED_HASH = hashOf(PRESENTED_TOKEN);
 
-const buildSession = (overrides: Partial<SessionProps> = {}): SessionEntity =>
-  new SessionEntity({
-    id: SESSION_ID,
-    userId: USER_ID,
-    authProviderId: AUTH_PROVIDER_ID,
-    refreshTokenHash: PRESENTED_HASH,
-    previousRefreshTokenHash: null,
-    deviceType: 'desktop',
-    expiresAt: new Date(Date.now() + 60_000),
-    lastUsedAt: new Date(),
-    revokedAt: null,
-    revokeReason: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  });
+const buildSession = (overrides: Partial<SessionEntity> = {}): SessionEntity => ({
+  id: SESSION_ID,
+  userId: USER_ID,
+  authProviderId: AUTH_PROVIDER_ID,
+  refreshTokenHash: PRESENTED_HASH,
+  previousRefreshTokenHash: null,
+  deviceName: null,
+  deviceType: 'desktop',
+  userAgent: null,
+  createdIp: null,
+  lastIp: null,
+  expiresAt: new Date(Date.now() + 60_000),
+  lastUsedAt: new Date(),
+  revokedAt: null,
+  revokeReason: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
 
-const buildUser = (): UserEntity =>
-  new UserEntity({
-    id: USER_ID,
-    firstName: 'Ada',
-    lastName: 'Lovelace',
-    primaryEmail: 'ada@example.com',
-    status: 'active',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+const buildUser = (): UserEntity => ({
+  id: USER_ID,
+  firstName: 'Ada',
+  lastName: 'Lovelace',
+  primaryEmail: 'ada@example.com',
+  primaryPhone: null,
+  avatarUrl: null,
+  status: 'active',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
 interface Setup {
   /** What the compare-and-swap rotation reports back. */

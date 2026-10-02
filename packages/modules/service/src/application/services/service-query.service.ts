@@ -10,7 +10,7 @@ export interface ServiceSnapshot {
   isActive: boolean;
 }
 
-export interface IServiceValidationService {
+export interface IServiceQueryService {
   isServiceInBusiness(businessId: string, serviceId: string): Promise<boolean>;
   isServiceBookableAtBranch(
     businessId: string,
@@ -25,7 +25,7 @@ export interface IServiceValidationService {
  * Service providing cross-module service catalog validation.
  * Encapsulates service existence, active status, and tenant isolation rules.
  */
-export class ServiceValidationService implements IServiceValidationService {
+export class ServiceQueryService implements IServiceQueryService {
   constructor(private readonly serviceRepository: IServiceRepository) {}
 
   /**
@@ -52,7 +52,7 @@ export class ServiceValidationService implements IServiceValidationService {
   async getServiceSnapshots(businessId: string, serviceIds: string[]): Promise<ServiceSnapshot[]> {
     const services = await this.serviceRepository.findByIds(businessId, serviceIds);
     return services.map((s) => ({
-      id: s.id as string,
+      id: s.id,
       name: s.name,
       defaultPrice: s.defaultPrice,
       defaultDurationMinutes: s.defaultDurationMinutes,
@@ -69,7 +69,7 @@ export class ServiceValidationService implements IServiceValidationService {
     const service = await this.serviceRepository.findById(businessId, serviceId);
     if (!service) return null;
     return {
-      id: service.id as string,
+      id: service.id,
       name: service.name,
       defaultPrice: service.defaultPrice,
       defaultDurationMinutes: service.defaultDurationMinutes,

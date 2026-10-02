@@ -1,7 +1,4 @@
-import type {
-  StaffMemberEntity,
-  StaffMemberProps,
-} from '../../domain/entities/staff-member.entity.js';
+import type { StaffMemberEntity } from '../../domain/entities/staff-member.entity.js';
 
 export interface CreateStaffMemberData {
   businessId: string;
@@ -68,7 +65,8 @@ export interface StaffScheduleShift {
   endsAt: string;
 }
 
-export interface StaffMemberWithRelations extends StaffMemberProps {
+/** A staff member plus its related assignments, schedules and shifts. */
+export interface StaffMemberWithRelations extends StaffMemberEntity {
   branchAssignments: StaffBranchAssignment[];
   serviceAssignments: StaffServiceAssignment[];
   workSchedules: (StaffWorkSchedule & { shifts: StaffScheduleShift[] })[];

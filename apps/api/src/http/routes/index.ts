@@ -1,5 +1,5 @@
 import { createAppointmentModule } from '@salon/appointment';
-import { createBranchModule, type IBranchValidationService } from '@salon/branch';
+import { createBranchModule, type IBranchQueryService } from '@salon/branch';
 import { createBusinessModule } from '@salon/business';
 import { config } from '@salon/config';
 import { createCustomerModule } from '@salon/customer';
@@ -36,7 +36,7 @@ import { registerHealthRoutes } from './health.route.js';
  *
  * Cross-module validation convention:
  * Modules receive the ACTUAL validation/query services of their dependencies (e.g.
- * `branchModule.branchValidationService`, `serviceModule.serviceValidationService`).
+ * `branchModule.branchQueryService`, `serviceModule.serviceQueryService`).
  * The consumer module declares a narrow port interface that the provider's service
  * satisfies structurally — no hand-rolled adapter objects in this file.
  */
@@ -57,10 +57,10 @@ export function initializeModules(app: Express): void {
   });
 
   // Forwarding adapters: Break circular initialization dependencies across modules
-  let branchValidationService: IBranchValidationService;
+  let branchQueryService: IBranchQueryService;
   const branchValidatorForRbac: IBranchValidator = {
     isBranchInBusiness: (businessId, branchId) =>
-      branchValidationService.isBranchInBusiness(businessId, branchId),
+      branchQueryService.isBranchInBusiness(businessId, branchId),
   };
 
   let staffQueryService: IStaffQueryService;
@@ -86,7 +86,7 @@ export function initializeModules(app: Express): void {
     requirePermission: rbacModule.requirePermission,
   });
   //Binding Moment : // We assign the real service to the variable we declared above.
-  branchValidationService = branchModule.branchValidationService;
+  branchQueryService = branchModule.branchQueryService;
 
   // 5. Initialize Service Module (Service Catalog)
   const serviceModule = createServiceModule({
@@ -94,7 +94,7 @@ export function initializeModules(app: Express): void {
     authMiddleware: identityModule.authMiddleware,
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
-    branchValidator: branchModule.branchValidationService,
+    branchValidator: branchModule.branchQueryService,
   });
 
   // 6. Initialize Staff Module (Staff Profiles & Schedules)
@@ -104,9 +104,9 @@ export function initializeModules(app: Express): void {
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
     requireBranchContext: rbacModule.requireBranchContext,
-    branchValidator: branchModule.branchValidationService,
-    serviceValidator: serviceModule.serviceValidationService,
-    businessMemberValidator: businessModule.businessValidationService,
+    branchValidator: branchModule.branchQueryService,
+    serviceValidator: serviceModule.serviceQueryService,
+    businessMemberValidator: businessModule.businessQueryService,
   });
   staffQueryService = staffModule.staffQueryService;
 
@@ -118,7 +118,7 @@ export function initializeModules(app: Express): void {
     authMiddleware: identityModule.authMiddleware,
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
-    businessValidator: businessModule.businessValidationService,
+    businessValidator: businessModule.businessQueryService,
     staffValidator: staffModule.staffQueryService,
   });
 
@@ -129,10 +129,10 @@ export function initializeModules(app: Express): void {
     tenantMiddleware: businessModule.tenantMiddleware,
     requirePermission: rbacModule.requirePermission,
     requireBranchContext: rbacModule.requireBranchContext,
-    branchValidator: branchModule.branchValidationService,
-    businessMemberValidator: businessModule.businessValidationService,
+    branchValidator: branchModule.branchQueryService,
+    businessMemberValidator: businessModule.businessQueryService,
     customerValidator: customerModule.customerQueryService,
-    serviceValidator: serviceModule.serviceValidationService,
+    serviceValidator: serviceModule.serviceQueryService,
     staffValidator: staffModule.staffQueryService,
   });
 
@@ -147,7 +147,7 @@ export function initializeModules(app: Express): void {
     requirePermission: rbacModule.requirePermission,
     requireBranchContext: rbacModule.requireBranchContext,
     appointmentService: appointmentModule.paymentService,
-    businessMemberValidator: businessModule.businessValidationService,
+    businessMemberValidator: businessModule.businessQueryService,
   });
 
   // 9. Mount Module Routers onto API Pipeline (/api/v1)

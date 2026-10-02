@@ -20,17 +20,60 @@ import type {
   StaffWorkSchedule,
   UpdateStaffMemberData,
 } from '../../application/ports/staff-repository.port.js';
-import {
-  StaffMemberEntity,
-  type StaffMemberProps,
-} from '../../domain/entities/staff-member.entity.js';
+import type { StaffMemberEntity } from '../../domain/entities/staff-member.entity.js';
+import { assertValidStaffMember } from '../../domain/policies/staff-member.policy.js';
 import { isScheduleActiveOnDate } from '../../domain/services/schedule-recurrence.js';
+
+/**
+ * Narrows the `languages` jsonb column to `string[]`.
+ *
+ * WHY NARROW INSTEAD OF CAST: the old `new StaffMemberEntity(row as StaffMemberProps)` cast asserted
+ * that a jsonb column (`unknown`) was already `string[]`. A bad write would therefore flow straight
+ * into the API response. Filtering keeps only real strings.
+ */
+function toLanguages(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+/** Narrows the `social_links` jsonb column to `Record<string, string>` (same reasoning as above). */
+function toSocialLinks(value: unknown): Record<string, string> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+
+  const links: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') links[key] = entry;
+  }
+
+  return links;
+}
 
 export class StaffRepository implements IStaffRepository {
   constructor(private readonly database: typeof db) {}
 
   private toDomainEntity(row: typeof staffMembers.$inferSelect): StaffMemberEntity {
-    return new StaffMemberEntity(row as StaffMemberProps);
+    const staff: StaffMemberEntity = {
+      id: row.id,
+      businessId: row.businessId,
+      businessMemberId: row.businessMemberId,
+      status: row.status,
+      displayName: row.displayName,
+      jobTitle: row.jobTitle,
+      biography: row.biography,
+      avatarMediaId: row.avatarMediaId,
+      employmentType: row.employmentType,
+      hireDate: row.hireDate,
+      excludeFromAutoAssignment: row.excludeFromAutoAssignment,
+      languages: toLanguages(row.languages),
+      socialLinks: toSocialLinks(row.socialLinks),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+
+    // Invariants used to run inside the entity constructor; they now run here, unchanged.
+    assertValidStaffMember(staff);
+
+    return staff;
   }
 
   /**
