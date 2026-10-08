@@ -20,6 +20,7 @@ export interface BusinessResponse {
   email: string;
   phoneNumber: string;
   status: string;
+  isPublished: boolean;
   socialLinks: Record<string, string> | null;
   verifiedAt: Date | null;
   createdAt: Date;
@@ -35,6 +36,7 @@ export function toBusinessResponse(business: BusinessEntity): BusinessResponse {
     email: business.email,
     phoneNumber: business.phoneNumber,
     status: business.status,
+    isPublished: business.isPublished,
     socialLinks: business.socialLinks,
     verifiedAt: business.verifiedAt,
     createdAt: business.createdAt,

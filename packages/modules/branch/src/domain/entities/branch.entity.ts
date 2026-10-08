@@ -60,8 +60,9 @@ export interface BranchEntity {
   name: string;
   phoneNumber: string | null;
   email: string | null;
-  timezone: string;
-  currency: string;
+  timezone: string; // e.g., 'America/New_York'
+  currency: string; // e.g., 'USD'
+  isPublished: boolean;
   addressLine1: string;
   addressLine2: string | null;
   city: string;

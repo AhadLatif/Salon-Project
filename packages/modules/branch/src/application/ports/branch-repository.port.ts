@@ -36,6 +36,7 @@ export interface UpdateBranchData {
   countryCode?: string | undefined;
   latitude?: string | null | undefined;
   longitude?: string | null | undefined;
+  isPublished?: boolean | undefined;
   status?: BranchStatus | undefined;
 }
 

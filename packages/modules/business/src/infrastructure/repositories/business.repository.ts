@@ -52,6 +52,7 @@ function toBusinessEntity(row: BusinessRow): BusinessEntity {
     email: row.email,
     phoneNumber: row.phoneNumber,
     status: row.status,
+    isPublished: row.isPublished,
     socialLinks: toSocialLinks(row.socialLinks),
     verifiedAt: row.verifiedAt,
     createdAt: row.createdAt,

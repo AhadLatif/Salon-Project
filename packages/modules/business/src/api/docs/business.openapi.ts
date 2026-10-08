@@ -32,6 +32,7 @@ const businessResponseSchema = z.object({
     email: z.string().email().openapi({ example: 'hello@johns-barbershop.com' }),
     phoneNumber: z.string().openapi({ example: '+1234567890' }),
     status: z.string().openapi({ example: 'pending' }),
+    isPublished: z.boolean().openapi({ example: false }),
     socialLinks: z.record(z.string(), z.string()).nullable(),
     verifiedAt: z.date().nullable(),
     createdAt: z.date(),

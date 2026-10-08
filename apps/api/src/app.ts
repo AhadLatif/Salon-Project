@@ -1,4 +1,6 @@
+import { config } from '@salon/config';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import type { Express } from 'express';
 import express from 'express';
 import { registerMiddleware } from './http/middlewares/index.js';
@@ -20,7 +22,24 @@ import { initializeModules } from './http/routes/index.js';
 export function createApp(): Express {
   const app = express();
 
-  // Phase 1: Request logging & body parsing (Must be first)
+  // ADR-013 requires the real client IP, otherwise every request appears to come from the
+  // load balancer and ONE user exhausting the limit throttles everybody. Expressed as a HOP
+  // COUNT, not `true`: trusting the whole `X-Forwarded-For` chain lets any client spoof its
+  // own IP and walk straight through the rate limiter. 0 = disabled (correct for local).
+  if (config.app.trustProxyHops > 0) {
+    app.set('trust proxy', config.app.trustProxyHops);
+  }
+
+  // Phase 1: CORS (before the logger so preflight OPTIONS short-circuits cleanly), then
+  // request logging & body parsing.
+  // CORS uses an explicit allow-list — `*` is invalid with
+  // `credentials: true` and would make the refresh cookie unusable by any origin.
+  app.use(
+    cors({
+      origin: config.marketplace.corsOrigins,
+      credentials: true,
+    }),
+  );
   app.use(httpLoggerMiddleware);
   app.use(express.json());
   app.use(cookieParser());

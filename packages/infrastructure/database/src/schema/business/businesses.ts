@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { check, index, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { generateId, helperTimeStamp } from '../shared/index.js';
 
 export const businessStatusEnum = pgEnum('business_status', [
@@ -22,6 +32,8 @@ export const businesses = pgTable(
     phoneNumber: text('phone_number').notNull(),
     status: businessStatusEnum('status').notNull().default('pending'),
     socialLinks: jsonb('social_links'),
+    isPublished: boolean('is_published').notNull().default(false),
+
     verifiedAt: timestamp('verified_at', { withTimezone: true, mode: 'date' }),
     ...helperTimeStamp,
   },

@@ -12,6 +12,7 @@ export const updateBusinessSchema = z.object({
       'Phone number must be in E.164 international format (e.g. +1234567890)',
     )
     .optional(),
+  isPublished: z.boolean().optional(),
   socialLinks: z.record(z.string(), z.string()).nullable().optional(),
 });
 

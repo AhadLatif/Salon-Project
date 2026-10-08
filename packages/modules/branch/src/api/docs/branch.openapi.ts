@@ -49,6 +49,7 @@ const branchResponseSchema = z
     latitude: z.string().nullable(),
     longitude: z.string().nullable(),
     status: z.enum(['active', 'inactive', 'archived']),
+    isPublished: z.boolean().openapi({ example: false }),
     openingHours: z.array(openingHourSchema),
     createdAt: z.date(),
     updatedAt: z.date(),

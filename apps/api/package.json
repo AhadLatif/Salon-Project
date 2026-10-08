@@ -41,6 +41,7 @@
     "@salon/database": "workspace:*",
     "@salon/identity": "workspace:*",
     "@salon/logger": "workspace:*",
+    "@salon/marketplace": "workspace:*",
     "@salon/payment": "workspace:*",
     "@salon/rbac": "workspace:*",
     "@salon/service": "workspace:*",
@@ -53,6 +54,7 @@
     "dotenv": "^16.4.1",
     "dotenv-expand": "^13.0.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "pino-http": "^11.0.0"
   }
 }

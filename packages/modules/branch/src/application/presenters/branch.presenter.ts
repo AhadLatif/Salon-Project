@@ -34,6 +34,7 @@ export interface BranchResponse {
   latitude: string | null;
   longitude: string | null;
   status: string;
+  isPublished: boolean;
   openingHours: BranchOpeningHourResponse[];
   createdAt: Date;
   updatedAt: Date;
@@ -57,6 +58,7 @@ export function toBranchResponse(branch: BranchEntity): BranchResponse {
     latitude: branch.latitude,
     longitude: branch.longitude,
     status: branch.status,
+    isPublished: branch.isPublished,
     // Deliberately narrows each hours row (see the note above).
     openingHours: branch.openingHours.map((h) => ({
       dayOfWeek: h.dayOfWeek,

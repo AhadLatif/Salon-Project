@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   char,
   check,
   index,
@@ -38,6 +39,7 @@ export const branches = pgTable(
     latitude: numeric('latitude', { precision: 9, scale: 6 }),
     longitude: numeric('longitude', { precision: 9, scale: 6 }),
     status: branchStatusEnum('status').notNull().default('active'),
+    isPublished: boolean('is_published').notNull().default(false),
     ...helperTimeStamp,
   },
   (table) => [

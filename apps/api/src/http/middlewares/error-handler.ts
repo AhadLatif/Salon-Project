@@ -4,6 +4,7 @@ import {
   ForbiddenError,
   ResourceNotFoundError,
   TenantIsolationError,
+  TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
 } from '@salon/shared';
@@ -51,6 +52,7 @@ export function globalErrorHandler(
     else if (err instanceof ResourceNotFoundError || err instanceof TenantIsolationError)
       statusCode = 404;
     else if (err instanceof ConflictError) statusCode = 409;
+    else if (err instanceof TooManyRequestsError) statusCode = 429;
 
     res.status(statusCode).json({
       success: false,

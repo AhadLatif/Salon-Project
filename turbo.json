@@ -10,7 +10,7 @@
     },
 
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build", "^typecheck"]
     },
 
     "lint": {
@@ -18,7 +18,7 @@
     },
 
     "test": {
-      "dependsOn": ["build"],
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
 
