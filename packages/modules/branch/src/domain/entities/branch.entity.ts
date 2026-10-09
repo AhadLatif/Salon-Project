@@ -20,17 +20,7 @@ export interface BranchOpeningHourInput {
   closesAt: string | null;
 }
 
-/**
- * The subset of a branch that the domain invariants examine.
- *
- * WHY THIS SHAPE EXISTS: the old `BranchEntity` validated inside its constructor, so validating a
- * branch that had not been persisted yet meant inventing one — `BranchRepository.create` fabricated
- * a whole entity with a hard-coded placeholder UUID and synthesised hour ids
- * (`` `00000000-0000-0000-0000-00000000000${index}` ``) purely to trigger the check. A policy that
- * takes exactly the fields it inspects removes that need: a real row satisfies this shape, and so
- * does a prospective create payload. The fabricated values are gone, so a bad placeholder can never
- * make validation pass for the wrong reason.
- */
+/** Minimal branch fields required by `assertValidBranch` policy checks. */
 export interface BranchValidationInput {
   businessId: string;
   name: string;
@@ -40,19 +30,9 @@ export interface BranchValidationInput {
 }
 
 /**
- * A salon location.
- *
- * CONTRACT — maps 1:1 onto the `branches` row plus `openingHours`, which the repository assembles
- * from the `opening_hours` table (a branch is conceptually incomplete without its hours).
- *
- * WHY AN INTERFACE RATHER THAN A CLASS: the class existed to run `validate()` in its constructor and
- * to expose `toJSON()`. TypeScript erases `private` at runtime, so the instance was physically
- * `{ props: {...} }` and any response that forgot `toJSON()` would have serialised the wrapper rather
- * than the branch. A branch is a bag of fields, so it is a shape; `toBranchResponse` owns what leaves
- * the module, and `assertValidBranch` owns the invariants.
- *
- * NOTE ON `id`: required here (it was optional) because the class doubled as a pre-insert builder,
- * which is exactly what forced the placeholder-UUID hack above. Rows always carry an id.
+ * Domain entity representing a branch location and its operational schedule.
+ * Maps directly to the persisted `branches` row and related `opening_hours`.
+ * Database-internal spatial columns (`location`) are excluded from the domain shape.
  */
 export interface BranchEntity {
   id: string;

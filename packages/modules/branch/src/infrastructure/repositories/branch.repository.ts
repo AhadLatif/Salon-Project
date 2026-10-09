@@ -1,5 +1,5 @@
 import { branches, type db, openingHours } from '@salon/database';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import type {
   CreateBranchData,
   IBranchRepository,
@@ -8,27 +8,34 @@ import type {
 import type { BranchEntity, OpeningHourProps } from '../../domain/entities/branch.entity.js';
 import { assertValidBranch } from '../../domain/policies/branch.policy.js';
 
+/**
+ * Converts coordinates to PostGIS geography(Point, 4326) in (longitude, latitude) order.
+ * Returns null if either coordinate is missing.
+ */
+function deriveLocation(latitude: string | null | undefined, longitude: string | null | undefined) {
+  if (latitude == null || longitude == null) {
+    return null;
+  }
+  return sql`ST_SetSRID(ST_MakePoint(${longitude}::float8, ${latitude}::float8), 4326)::geography`;
+}
+
 export class BranchRepository implements IBranchRepository {
   constructor(private readonly database: typeof db) {}
 
   /**
-   * Transforms raw database rows into the branch domain shape.
-   *
-   * The row IS the entity now, so this only assembles `openingHours` and enforces the invariants —
-   * previously the rules ran inside `BranchEntity`'s constructor, which is why this function used to
-   * end in `} as BranchProps)` (an unchecked cast that would have accepted a row the entity did not
-   * actually describe).
+   * Assembles a BranchEntity from the branches table row and opening_hours rows.
+   * Strips the internal spatial `location` column and validates domain invariants.
    */
   private toDomainEntity(
     branchRow: typeof branches.$inferSelect,
     hoursRows: (typeof openingHours.$inferSelect)[] = [],
   ): BranchEntity {
+    // Spatial copy is persistence-internal and excluded from the domain entity (DECISION-008)
+    const { location: _spatialCopy, ...row } = branchRow;
     const branch: BranchEntity = {
-      ...branchRow,
+      ...row,
       openingHours: hoursRows.map((h) => ({
         ...h,
-        // Drizzle might return dates or strings for times depending on pg driver settings,
-        // so we just pass them through safely.
       })),
     };
 
@@ -38,15 +45,8 @@ export class BranchRepository implements IBranchRepository {
   }
 
   async create(data: CreateBranchData): Promise<BranchEntity> {
-    // We use a transaction because creating a branch without opening hours
-    // is an invalid business state in our domain.
     return await this.database.transaction(async (tx) => {
-      // Validate business rules BEFORE touching the database.
-      //
-      // This previously fabricated an entire entity — a hard-coded placeholder UUID plus synthetic
-      // hour ids (`...000${index}`) — purely so the constructor's validator would run. The policy
-      // takes exactly the fields it inspects, so the prospective branch is validated directly: no
-      // fake row, no dummy ids, and no chance of a fabricated value making an invalid branch pass.
+      // Validate business rules before persisting
       assertValidBranch({
         businessId: data.businessId,
         name: data.name,
@@ -72,6 +72,7 @@ export class BranchRepository implements IBranchRepository {
           countryCode: data.countryCode,
           latitude: data.latitude ?? null,
           longitude: data.longitude ?? null,
+          location: deriveLocation(data.latitude, data.longitude),
         })
         .returning();
 
@@ -139,14 +140,19 @@ export class BranchRepository implements IBranchRepository {
     data: UpdateBranchData,
   ): Promise<BranchEntity | null> {
     return await this.database.transaction(async (tx) => {
-      // 1. Fetch existing branch and hours
-      const existingBranch = await tx.query.branches.findFirst({
-        where: and(
-          eq(branches.id, branchId),
-          eq(branches.businessId, businessId),
-          ne(branches.status, 'archived'),
-        ),
-      });
+      // Lock the branch row to prevent concurrent lost updates
+      const [existingBranch] = await tx
+        .select()
+        .from(branches)
+        .where(
+          and(
+            eq(branches.id, branchId),
+            eq(branches.businessId, businessId),
+            ne(branches.status, 'archived'),
+          ),
+        )
+        .limit(1)
+        .for('update');
 
       if (!existingBranch) return null;
 
@@ -155,21 +161,24 @@ export class BranchRepository implements IBranchRepository {
         orderBy: (hours, { asc }) => [asc(hours.dayOfWeek)],
       });
 
-      // 2. Construct candidate state and run domain validation BEFORE write
+      // Merge and validate invariants against the candidate state
       const candidateData = { ...existingBranch };
       for (const key in data) {
         if ((data as Record<string, unknown>)[key] !== undefined) {
           (candidateData as Record<string, unknown>)[key] = (data as Record<string, unknown>)[key];
         }
       }
-      // This throws ValidationError if the candidate state is invalid
       this.toDomainEntity(candidateData, hoursRows);
 
-      // 3. Apply update only after validation passes
+      // Recompute PostGIS geography point if coordinates were touched
+      const touchesCoordinates = data.latitude !== undefined || data.longitude !== undefined;
       const [updatedBranch] = await tx
         .update(branches)
         .set({
           ...data,
+          ...(touchesCoordinates
+            ? { location: deriveLocation(candidateData.latitude, candidateData.longitude) }
+            : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(branches.id, branchId), eq(branches.businessId, businessId)))
@@ -181,25 +190,14 @@ export class BranchRepository implements IBranchRepository {
     });
   }
 
-  /**
-   * Replaces opening hours for a branch atomically using pessimistic locking.
-   *
-   * Transaction & Concurrency Invariants:
-   * 1. Acquires a pessimistic row-level lock (`FOR UPDATE`) on the target branch row
-   *    to serialize concurrent hour modifications for the same branch.
-   * 2. Deletes all existing `opening_hours` rows for this branch.
-   * 3. Batch inserts the new validated opening hour records.
-   * 4. Returns the reconstituted `BranchEntity` with new opening hours.
-   */
+  /** Replaces opening hours for a branch atomically inside a transaction. */
   async replaceOpeningHours(
     businessId: string,
     branchId: string,
     hoursData: Omit<OpeningHourProps, 'id' | 'businessId' | 'branchId'>[],
   ): Promise<BranchEntity | null> {
     return await this.database.transaction(async (tx) => {
-      // 1. Verify branch exists and lock it for update to prevent concurrent modifications
       const [branch] = await tx
-
         .select()
         .from(branches)
         .where(
@@ -213,12 +211,10 @@ export class BranchRepository implements IBranchRepository {
 
       if (!branch) return null;
 
-      // 2. Delete old hours
       await tx
         .delete(openingHours)
         .where(and(eq(openingHours.branchId, branchId), eq(openingHours.businessId, businessId)));
 
-      // 3. Insert new hours
       const hoursToInsert = hoursData.map((hours) => ({
         businessId: businessId,
         branchId: branchId,
