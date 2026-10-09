@@ -24,18 +24,10 @@ export const publicBusinessProfileSchema = z.object({
   branches: z.array(publicBranchSchema),
 });
 
-// NEW: Strict validation for pagination input
+// Query params for public business browsing with a hard cap of 50 per page
 export const businessListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
 export type BusinessListQuery = z.infer<typeof businessListQuerySchema>;
-
-// NEW: Paginated response envelope
-export const paginatedBusinessListSchema = z.object({
-  items: z.array(publicBusinessProfileSchema),
-  total: z.number().int().min(0),
-  limit: z.number().int().min(1),
-  offset: z.number().int().min(0),
-});

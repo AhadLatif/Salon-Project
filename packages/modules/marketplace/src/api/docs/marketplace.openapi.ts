@@ -1,9 +1,6 @@
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from '@salon/validation';
-import {
-  paginatedBusinessListSchema,
-  publicBusinessProfileSchema,
-} from '../dtos/public-business.schema.js';
+import { publicBusinessProfileSchema } from '../dtos/public-business.schema.js';
 
 export const marketplaceOpenApiRegistry = new OpenAPIRegistry();
 
@@ -13,7 +10,6 @@ const errorSchema = z.object({
   details: z.record(z.string(), z.string()).optional(),
 });
 
-// Note: Mirrored from payment module. We will log a follow-up to extract this to @salon/shared.
 const successEnvelopeSchema = <T extends z.ZodTypeAny>(
   dataSchema: T,
   metaSchema: z.ZodTypeAny = z.object({}),
@@ -28,7 +24,6 @@ const successEnvelopeSchema = <T extends z.ZodTypeAny>(
 const failureEnvelopeSchema = z.object({
   success: z.literal(false),
   error: errorSchema,
-  data: z.null(),
   meta: z.object({}),
 });
 
@@ -38,7 +33,7 @@ marketplaceOpenApiRegistry.registerPath({
   summary: 'Marketplace public ping',
   description: 'Anonymous ping endpoint to test marketplace ingress and optional auth.',
   tags: ['Marketplace (public)'],
-  security: [], // Critical: marks this endpoint as anonymous
+  security: [], // Public endpoint: no auth required
   responses: {
     200: {
       description: 'Successful ping',
@@ -87,6 +82,10 @@ marketplaceOpenApiRegistry.registerPath({
       description: 'Salon not found',
       content: { 'application/json': { schema: failureEnvelopeSchema } },
     },
+    429: {
+      description: 'Too many requests',
+      content: { 'application/json': { schema: failureEnvelopeSchema } },
+    },
   },
 });
 marketplaceOpenApiRegistry.registerPath({
@@ -100,12 +99,14 @@ marketplaceOpenApiRegistry.registerPath({
     query: z.object({
       limit: z.coerce
         .number()
+        .int()
         .min(1)
         .max(50)
         .default(20)
         .openapi({ description: 'Max items per page (hard cap 50)' }),
       offset: z.coerce
         .number()
+        .int()
         .min(0)
         .default(0)
         .openapi({ description: 'Number of items to skip' }),
@@ -116,12 +117,29 @@ marketplaceOpenApiRegistry.registerPath({
       description: 'Paginated list of businesses',
       content: {
         'application/json': {
-          schema: successEnvelopeSchema(paginatedBusinessListSchema),
+          // Response conforms to the platform's standard collection envelope where `data` holds
+          // the array of matching business profiles and `meta` conveys pagination counters.
+          schema: successEnvelopeSchema(
+            z.array(publicBusinessProfileSchema),
+            z.object({
+              total: z.number().int().min(0).openapi({ description: 'Total published businesses' }),
+              limit: z
+                .number()
+                .int()
+                .min(1)
+                .openapi({ description: 'Max items per page (hard cap 50)' }),
+              offset: z.number().int().min(0).openapi({ description: 'Number of items skipped' }),
+            }),
+          ),
         },
       },
     },
     400: {
       description: 'Invalid pagination parameters',
+      content: { 'application/json': { schema: failureEnvelopeSchema } },
+    },
+    429: {
+      description: 'Too many requests',
       content: { 'application/json': { schema: failureEnvelopeSchema } },
     },
   },
