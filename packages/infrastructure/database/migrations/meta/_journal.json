@@ -99,6 +99,13 @@
       "when": 1790532774412,
       "tag": "0013_marketplace_visibility_toggle",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791545148137,
+      "tag": "0014_add_postgis_extension_and_branch_location",
+      "breakpoints": true
     }
   ]
 }
