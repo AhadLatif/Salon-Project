@@ -1,9 +1,15 @@
 # infrastructure/docker/compose.yml
 services:
   postgres:
-    # 1. THE IMAGE: We use the official PostgreSQL version 18 based on Alpine Linux. 
-    # Alpine is incredibly small and fast, perfect for local dev and VPS deployment.
-    image: postgres:18-alpine
+    # 1. THE IMAGE: PostgreSQL 18 + PostGIS 3.6, pinned tag (ADR-017 §5.1).
+    #    - Ships server 18.6 >= our existing data dir's 18.4 (safe direction: a newer
+    #      minor upgrades an older data dir in place; the reverse is refused).
+    #    - The PG18+ data-dir layout (/var/lib/postgresql) matches our volume mount below.
+    #    - Swapping the image only makes PostGIS AVAILABLE; the extension is turned on
+    #      per database by migration 0014 (never by hand).
+    #    - Rollback after that migration is NOT a revert here — restore from
+    #      .local-backups/ (see docs .../marketplace/POSTGIS_SETUP_PLAN.md §8).
+    image: postgis/postgis:18-3.6-alpine
     container_name: salon_postgres
     restart: unless-stopped
     
