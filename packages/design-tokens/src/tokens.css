@@ -1,0 +1,107 @@
+:root {
+  /* ── Color (Semantic Action Foundation — Black & Neutral) ── */
+  /* Primary Action (Bunker Black) */
+  --color-primary: #0d0d0d;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #262626;
+  --color-primary-active: #3a3a3a;
+
+  /* Secondary Actions (Dark Charcoal & Light Neutral) */
+  --color-secondary: #f2f2f2;
+  --color-secondary-foreground: #0d0d0d;
+  --color-secondary-hover: #e5e5e5;
+  --color-secondary-active: #d4d4d4;
+
+  --color-secondary-dark: #262626;
+  --color-secondary-dark-foreground: #ffffff;
+  --color-secondary-dark-hover: #181818;
+
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-surface-raised: #f9f9f9;
+  --color-surface-faded: #f2f2f2;
+  --color-surface-overlay: rgba(13, 13, 13, 0.4);
+
+  /* Typography */
+  --color-text-primary: #0d0d0d;
+  --color-text-secondary: #404040;
+  --color-text-muted: #767676;
+  --color-text-disabled: #a3a3a3;
+
+  /* Borders & Dividers */
+  --color-border: #d4d4d4;
+  --color-border-subtle: #e5e5e5;
+  --color-border-focus: #0d0d0d;
+
+  /* Functional Status (Restrained, not loud) */
+  --color-danger: #dc2626;
+  --color-danger-foreground: #ffffff;
+  --color-danger-subtle: #fef2f2;
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-success-subtle: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-warning-subtle: #fffbeb;
+
+  /* Double-Ring Focus (WCAG 2.2 AA compliant on dark and light surfaces) */
+  --color-focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #0d0d0d;
+
+  /* ── 11-Step Fresha Neutral Gray Scale ── */
+  --gray-950: #0d0d0d;
+  --gray-900: #181818;
+  --gray-800: #262626;
+  --gray-700: #404040;
+  --gray-600: #595959;
+  --gray-500: #767676;
+  --gray-400: #a3a3a3;
+  --gray-300: #d4d4d4;
+  --gray-200: #e5e5e5;
+  --gray-100: #f2f2f2;
+  --gray-50: #f9f9f9;
+  --white: #ffffff;
+
+  /* ── Typography Scale ── */
+  --font-display: var(--font-geist-sans, system-ui, sans-serif);
+  --font-ui: var(--font-geist-sans, system-ui, sans-serif);
+
+  /* ── Spacing Scale ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Border Radius Scale (Tiered Rounding Hierarchy) ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-input: 12px;   /* Balanced Squircle: fields, selects, textareas — prevents over-rounding */
+  --radius-card: 16px;    /* Surface containers, panels */
+  --radius-modal: 24px;   /* Dialogs, sheets, floating popovers */
+  --radius-btn: 9999px;   /* Buttons, action triggers */
+  --radius-pill: 9999px;  /* Search capsules, category chips, tags, badges */
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px 0 rgba(13, 13, 13, 0.04), 0 1px 2px 0 rgba(13, 13, 13, 0.02);
+  --shadow-md: 0 4px 12px 0 rgba(13, 13, 13, 0.06), 0 2px 4px 0 rgba(13, 13, 13, 0.02);
+  --shadow-lg: 0 8px 30px 0 rgba(13, 13, 13, 0.08);
+
+  /* ── Motion & Timing (Emil Kowalski Physics) ── */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Z-Index Layers ── */
+  --z-dropdown: 50;
+  --z-modal-backdrop: 40;
+  --z-modal: 30;
+  --z-toast: 60;
+}

@@ -3,6 +3,9 @@ packages:
   - "packages/**" # (**) matches any level of subdirectory
   - "configs/*"
 allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
   bcrypt: true
   esbuild: true
   vue-demi: true
+

@@ -1,0 +1,14 @@
+{
+  "name": "@salon/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Salon Platform — design tokens (semantic CSS variables)",
+  "license": "UNLICENSED",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./package.json": "./package.json"
+  }
+}

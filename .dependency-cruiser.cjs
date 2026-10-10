@@ -429,6 +429,38 @@ module.exports = {
       },
     },
     // =========================================================================
+    // Frontend (apps/web) Boundaries
+    // =========================================================================
+
+    {
+      name: 'frontend-shared-cannot-import-features',
+      comment: 'Shared frontend layer must not depend on features.',
+      severity: 'error',
+      from: { path: '^apps/web/src/shared/' },
+      to: { path: '^apps/web/src/features/' },
+    },
+    {
+      name: 'frontend-entities-cannot-import-features',
+      comment: 'Entities must not depend on features.',
+      severity: 'error',
+      from: { path: '^apps/web/src/entities/' },
+      to: { path: '^apps/web/src/features/' },
+    },
+    {
+      name: 'frontend-no-importing-feature-internals',
+      comment: "Features must not import another feature's internals. Import via index.ts instead.",
+      severity: 'error',
+      from: { path: '^apps/web/src/features/([^/]+)/' },
+      to: {
+        path: '^apps/web/src/features/[^/]+/',
+        pathNot: [
+          '^apps/web/src/features/$1/', // Same feature
+          '^apps/web/src/features/[^/]+/index\\.(ts|tsx)$', // Public API of other feature
+        ],
+      },
+    },
+
+    // =========================================================================
     // Shared Rules
     // =========================================================================
 

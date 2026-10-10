@@ -1,0 +1,26 @@
+{
+  "name": "@salon/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Salon Platform — generated OpenAPI client",
+  "license": "UNLICENSED",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "generate": "NODE_ENV=test JWT_SECRET=testtesttesttesttesttesttesttesttest DATABASE_URL=postgres://test:test@test:5432/test pnpm --filter @salon/api exec tsx src/scripts/export-openapi.ts --out ../../packages/api-client/openapi.json && openapi-typescript openapi.json -o src/schema.d.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "openapi-typescript": "^7.0.0",
+    "typescript": "^5.0.0",
+    "@salon/typescript-config": "workspace:*"
+  }
+}

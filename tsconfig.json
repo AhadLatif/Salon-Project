@@ -4,5 +4,13 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "apps/web",
+    "packages/ui",
+    "packages/design-tokens",
+    "packages/api-client",
+    "packages/frontend-config"
+  ]
 }

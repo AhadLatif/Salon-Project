@@ -1,0 +1,13 @@
+{
+  "name": "@salon/frontend-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Salon Platform — shared frontend toolchain config",
+  "license": "UNLICENSED",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  }
+}
