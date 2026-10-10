@@ -1,3 +1,4 @@
+export * from './get-current-user.use-case.js';
 export * from './login.use-case.js';
 export * from './logout.use-case.js';
 export * from './refresh-token.use-case.js';

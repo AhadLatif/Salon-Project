@@ -1,6 +1,7 @@
 import { respondOk, UnauthorizedError, validateBody } from '@salon/shared';
 import type { CookieOptions, NextFunction, Request, Response } from 'express';
 import { toAuthUserResponse } from '../../application/presenters/auth.presenter.js';
+import type { GetCurrentUserUseCase } from '../../application/use-cases/get-current-user.use-case.js';
 import type { LoginUseCase } from '../../application/use-cases/login.use-case.js';
 import type { LogoutUseCase } from '../../application/use-cases/logout.use-case.js';
 import type { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case.js';
@@ -21,6 +22,7 @@ export interface AuthControllerDependencies {
   loginUseCase: LoginUseCase;
   refreshTokenUseCase: RefreshTokenUseCase;
   logoutUseCase: LogoutUseCase;
+  getCurrentUserUseCase: GetCurrentUserUseCase;
   /** Attributes used when ISSUING the refresh cookie. */
   refreshCookieOptions: CookieOptions;
   /** Attributes used when CLEARING it (must match, minus `maxAge`). */
@@ -268,7 +270,7 @@ export class AuthController {
   };
 
   /**
-   * Returns authenticated user profile claims from the verified JWT access token.
+   * Returns the authenticated user's profile.
    *
    * @http GET /api/v1/auth/me
    * @headers
@@ -277,14 +279,25 @@ export class AuthController {
    * @flow
    *   Client -> authMiddleware (verifies JWT & attaches req.user)
    *          -> AuthController.me
+   *          -> GetCurrentUserUseCase.execute -> UserRepository.findById
    *
-   * @returns 200 OK { success: true, data: { user: { sub, email, ... } }, error: null, meta: {} }
-   * @throws 401 Unauthorized (Missing or expired Bearer token)
+   * @returns 200 OK { success: true, data: { user: { id, email, fullName } }, error: null, meta: {} }
+   *          — the SAME presenter shape as register/login, so a client that restores its session
+   *          via `/auth/refresh` holds an identical `user` object to one that just logged in.
+   * @throws 401 Unauthorized (Missing/expired Bearer token, or the account no longer exists)
    */
   me = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // authMiddleware guarantees req.user on this route; the guard keeps the type honest
+      // instead of asserting it away with `!`.
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const user = await this.deps.getCurrentUserUseCase.execute({ userId: req.user.userId });
+
       respondOk(res, 200, {
-        user: req.user,
+        user: toAuthUserResponse(user),
       });
     } catch (error) {
       next(error);

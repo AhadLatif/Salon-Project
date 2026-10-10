@@ -7,6 +7,7 @@ import {
   type RuntimeEnvironment,
 } from './api/cookies/refresh-cookie.js';
 import { createAuthMiddleware } from './api/middlewares/auth.middleware.js';
+import { GetCurrentUserUseCase } from './application/use-cases/get-current-user.use-case.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
 import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case.js';
@@ -29,6 +30,7 @@ export * from './application/ports/password-service.port.js';
 export * from './application/ports/session-repository.port.js';
 export * from './application/ports/token-service.port.js';
 export * from './application/ports/user-repository.port.js';
+export * from './application/use-cases/get-current-user.use-case.js';
 export * from './application/use-cases/login.use-case.js';
 export * from './application/use-cases/logout.use-case.js';
 export * from './application/use-cases/refresh-token.use-case.js';
@@ -60,6 +62,7 @@ export interface IdentityModule {
     loginUseCase: LoginUseCase;
     refreshTokenUseCase: RefreshTokenUseCase;
     logoutUseCase: LogoutUseCase;
+    getCurrentUserUseCase: GetCurrentUserUseCase;
   };
 }
 
@@ -90,6 +93,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     userRepository,
   );
   const logoutUseCase = new LogoutUseCase(sessionRepository, jwtService);
+  const getCurrentUserUseCase = new GetCurrentUserUseCase(userRepository);
 
   // C. API Controllers & Routers
   // Cookie attributes are decided ONCE here (from the injected environment) and shared by the
@@ -99,6 +103,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     loginUseCase,
     refreshTokenUseCase,
     logoutUseCase,
+    getCurrentUserUseCase,
     refreshCookieOptions: buildRefreshCookieOptions(deps.environment, SESSION_TTL_MS),
     clearedRefreshCookieOptions: buildClearedRefreshCookieOptions(deps.environment, SESSION_TTL_MS),
   });
@@ -119,6 +124,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
       loginUseCase,
       refreshTokenUseCase,
       logoutUseCase,
+      getCurrentUserUseCase,
     },
   };
 }

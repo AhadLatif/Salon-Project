@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { db, userSessions } from '@salon/database';
 import { REFRESH_COOKIE_NAME } from '@salon/identity';
-import { truncateAllTables } from '@salon/testing';
+import { generateTestJwtToken, truncateAllTables } from '@salon/testing';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
@@ -230,5 +231,63 @@ describe('Auth API Routes Integration Tests', () => {
       .post('/api/v1/auth/refresh')
       .set('Cookie', `${REFRESH_COOKIE_NAME}=totally-made-up-token`);
     expect(response.status).toBe(401);
+  });
+
+  it('GET /api/v1/auth/me - should return the same user shape as login when the token is valid', async () => {
+    // Arrange
+    const { accessToken } = await registerAndLogin(app, 'me.profile@example.com');
+
+    // Act
+    const response = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    // Assert — exactly the presenter fields; no JWT claims (userId/iat/exp) leak through.
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.user).toEqual({
+      id: expect.any(String),
+      email: 'me.profile@example.com',
+      fullName: 'Test User',
+    });
+  });
+
+  it('GET /api/v1/auth/me - should return the profile with a token minted by /refresh (page-reload path)', async () => {
+    // Arrange — this is how the web app restores a session: cookie -> refresh -> me.
+    const { refreshToken } = await registerAndLogin(app, 'me.reload@example.com');
+    const refreshResponse = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', `${REFRESH_COOKIE_NAME}=${refreshToken}`);
+    const refreshedAccessToken = refreshResponse.body.data.tokens.accessToken;
+
+    // Act
+    const response = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${refreshedAccessToken}`);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.user.fullName).toBe('Test User');
+  });
+
+  it('GET /api/v1/auth/me - should return 401 when no Bearer token is presented', async () => {
+    const response = await request(app).get('/api/v1/auth/me');
+
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('GET /api/v1/auth/me - should return 401 when the token is valid but the account no longer exists', async () => {
+    // Arrange — a correctly signed token for a user id that has no row.
+    const orphanToken = generateTestJwtToken({ userId: randomUUID(), email: 'ghost@example.com' });
+
+    // Act
+    const response = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${orphanToken}`);
+
+    // Assert — 401, not 404: the caller must not learn whether a user id exists.
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
   });
 });

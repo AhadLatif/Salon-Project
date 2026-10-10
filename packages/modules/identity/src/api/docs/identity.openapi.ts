@@ -283,31 +283,27 @@ identityOpenApiRegistry.registerPath({
 identityOpenApiRegistry.registerPath({
   method: 'get',
   path: '/api/v1/auth/me',
-  summary: 'Read the authenticated user from the access token',
+  summary: 'Read the authenticated user',
   description:
-    'Returns the claims embedded in the verified JWT. This endpoint never touches the refresh cookie.',
+    'Returns the profile of the account behind the verified access token — the same `user` shape as register/login, so a session restored via `/auth/refresh` is indistinguishable from a fresh login. This endpoint never touches the refresh cookie.',
   tags: ['Identity & Authentication'],
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: 'Authenticated user claims',
+      description: 'Authenticated user profile',
       content: {
         'application/json': {
           schema: envelopeSchema.extend({
             data: z.object({
-              user: z
-                .object({
-                  userId: z.uuid(),
-                  email: z.email(),
-                })
-                .openapi({ description: 'Decoded access-token payload.' }),
+              user: authUserSchema,
             }),
           }),
         },
       },
     },
     401: {
-      description: 'Unauthorized (Missing or expired Bearer token)',
+      description:
+        'Unauthorized (Missing or expired Bearer token, or the account no longer exists)',
       content: {
         'application/json': {
           schema: errorResponseSchema,
