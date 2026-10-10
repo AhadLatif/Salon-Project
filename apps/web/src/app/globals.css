@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
+@source "../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
+
+@import "@salon/design-tokens/tokens.css";
+
+:root {
+  --background: var(--color-surface);
+  --foreground: var(--color-text-primary);
+}
+
+@theme inline {
+  --color-background: var(--color-surface);
+  --color-foreground: var(--color-text-primary);
+  --color-muted: var(--color-border);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-secondary-dark: var(--color-secondary-dark);
+  --color-secondary-dark-foreground: var(--color-secondary-dark-foreground);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-danger-foreground);
+  --color-accent: var(--color-secondary);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-input: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-ring: var(--color-text-primary);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-ui);
+  --radius-input: var(--radius-input);
+  --radius-card: var(--radius-card);
+  --radius-modal: var(--radius-modal);
+  --radius-pill: var(--radius-pill);
+  --radius-btn: var(--radius-btn);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+}
+
+/* ── Craft floor: browser surfaces belong to the design ── */
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+input {
+  caret-color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--color-focus-ring);
+}
+
+/* Respect reduced-motion at the system level (design strategy §7.4). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

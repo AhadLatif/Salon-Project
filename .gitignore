@@ -64,3 +64,6 @@ temp/
 
 /docs/
 
+
+# Next.js build output
+.next/
